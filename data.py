@@ -45,9 +45,9 @@ class DataGenerator():
 
     for signal_dim in range(self.dim):
       for num, true, true_noise, pred in zip(range(rand_y.shape[0])[:3], rand_y.detach().cpu()[:3, signal_dim, :], rand_y_noise.detach().cpu()[:3, signal_dim, :], rand_y_rec.detach().cpu()[:3][:3, signal_dim, :]):
-        ax[0][signal_dim].plot(true, ls='', c=clrs(num), label='signal')
-        ax[0][signal_dim].plot(true_noise, ls=':', c=clrs(num), label='signal + noise')
-        ax[0][signal_dim].plot(pred, ls='--', c=clrs(num), label='reconstructed')
+        ax[0][signal_dim].plot(true, ls='', c=clrs(num), label='signal', marker='o', ms=2)
+        ax[0][signal_dim].plot(true_noise, ls='', c=clrs(num), label='signal + noise', marker='x', ms=2)
+        ax[0][signal_dim].plot(pred, c=clrs(num), label='reconstructed')
 
     return fig
 
@@ -91,8 +91,8 @@ class SinDataGenerator(DataGenerator):
     batch_y = batch_y.detach().cpu()
     
     for num in range(3):
-      plt.plot(batch_y[num][0], ls='-', c=clrs(num), label='signal')
-      plt.plot(pred_y[num][0], c=clrs(num), ls='--', label='predicted')
+      plt.plot(batch_y[num][0], ls='', c=clrs(num), label='signal', marker='o', ms=2)
+      plt.plot(pred_y[num][0], c=clrs(num), label='predicted')
 
     return fig
 
@@ -147,7 +147,7 @@ class LorenzDataGenerator(DataGenerator):
     batch_y = batch_y.detach().cpu()
     
     for num in range(3):
-      ax.plot(batch_y[num, 0, :], batch_y[num, 1, :], batch_y[num, 2, :], ls='-', c=clrs(num), label='signal', alpha=0.5)
-      ax.plot(pred_y[num, 0, :], pred_y[num, 1, :], pred_y[num, 2, :], ls='--', c=clrs(num), label='predicted', alpha=0.5)
+      ax.plot(batch_y[num, 0, :], batch_y[num, 1, :], batch_y[num, 2, :], ls='', c=clrs(num), label='signal', alpha=0.5, marker='o', ms=2,)
+      ax.plot(pred_y[num, 0, :], pred_y[num, 1, :], pred_y[num, 2, :], c=clrs(num), label='predicted', alpha=0.5)
 
     return fig
