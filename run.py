@@ -9,6 +9,8 @@ from data import SinDataGenerator, LorenzDataGenerator
 from train import train
 from callbacks import ensure_clean_worktree, get_commit_hash
 
+DATASET = 'SIN'
+
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
@@ -19,23 +21,41 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-
   training_params = {'lambd': 0.2, 'n_iter': 10000, 'n_batch_steps': 1, 'lr': 1e-3}
+  
+  if DATASET == 'SIN':   
 
-  data_params = {'latent_dim': 5, 'signal_dim': 3,
-                'trajectory_len': 200, 'batch_size': 32, 'signal_max_amp': 3,
-                'signal_t_min': 0, 'signal_t_max': 4*3.14, 'signal_noise_amp': 0.2,
-                'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
+    data_params = {'latent_dim': 5, 'signal_dim': 1,
+                  'trajectory_len': 200, 'batch_size': 32, 'signal_max_amp': 3,
+                  'signal_t_min': 0, 'signal_t_max': 4*3.14, 'signal_noise_amp': 0.2,
+                  'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
 
-  model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 5,
-                  'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
-                  'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
+    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 5,
+                    'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
+                    'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
 
+    data_generator = SinDataGenerator(**data_params)
+
+  elif DATASET == 'LORENZ':
+
+    data_params = {'latent_dim': 5, 'signal_dim': 3,
+                  'trajectory_len': 1000, 'batch_size': 32, 'signal_max_amp': 10,
+                  'sigma': 10.0, 'rho':28.0, 'beta':8.0/3.0,
+                  'signal_t_min': 0, 'signal_t_max': 5, 'signal_noise_amp': 0,
+                  'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0}
+
+    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 5,
+                    'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
+                    'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
+
+    data_generator = LorenzDataGenerator(**data_params)
+
+  else:
+    raise ValueError('Wrong dataset name')
 
   model = NODESolver(latent_dim=data_params['latent_dim'], signal_dim=data_params['signal_dim'],
                     **model_params).to(device)
 
-  data_generator = LorenzDataGenerator(**data_params)
 
   optimizer = torch.optim.Adam(model.parameters(), lr=training_params['lr'])
 
@@ -54,7 +74,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'reproduce results'
+  experiment_name = 'reproduce results after another refactoring'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
