@@ -5,7 +5,7 @@ import torch.nn as nn
 import wandb
 
 from model import NODESolver
-from data import DataGenerator
+from data import SinDataGenerator, LorenzDataGenerator
 from train import train
 from callbacks import ensure_clean_worktree, get_commit_hash
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
   training_params = {'lambd': 0.2, 'n_iter': 10000, 'n_batch_steps': 1, 'lr': 1e-3}
 
-  data_params = {'latent_dim': 5, 'signal_dim': 1,
+  data_params = {'latent_dim': 5, 'signal_dim': 3,
                 'trajectory_len': 200, 'batch_size': 32, 'signal_max_amp': 3,
                 'signal_t_min': 0, 'signal_t_max': 4*3.14, 'signal_noise_amp': 0.2,
                 'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
@@ -35,7 +35,7 @@ if __name__ == '__main__':
   model = NODESolver(latent_dim=data_params['latent_dim'], signal_dim=data_params['signal_dim'],
                     **model_params).to(device)
 
-  data_generator = DataGenerator(**data_params)
+  data_generator = LorenzDataGenerator(**data_params)
 
   optimizer = torch.optim.Adam(model.parameters(), lr=training_params['lr'])
 

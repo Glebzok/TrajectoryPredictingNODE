@@ -100,5 +100,5 @@ class NODESolver(nn.Module):
 
   def autoencoder_forward(self, y): 
     z = self.encoder(y)
-    pred_y = self.decoder(z.transpose(1, 2)).permute(1, 2, 0)
+    pred_y = self.decoder(z.transpose(1, 2)).transpose(1, 2)
     return pred_y

@@ -15,10 +15,10 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, devic
     rand_y, rand_y_noise = rand_y.to(device), rand_y_noise.to(device)
 
     if itr == 0:
-      torch.onnx.export(model.encoder, batch_y[:, None, :], 'encoder.onnx')
+      torch.onnx.export(model.encoder, batch_y, 'encoder.onnx')
       wandb.save('encoder.onnx')
 
-      z0 = model.encoder(batch_y[:, None, :])[:, :, 0]
+      z0 = model.encoder(batch_y)[:, :, 0]
       torch.onnx.export(model.rhs, (batch_t, z0), 'rhs.onnx')
       wandb.save('rhs.onnx')
 

@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 from torchdiffeq import odeint_adjoint as odeint
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 class DataGenerator():
   def __init__(self, trajectory_len, batch_size,
                rand_p, rand_q, rand_max_amp, rand_noise_amp, **kwargs):
@@ -30,7 +33,7 @@ class DataGenerator():
 
     y = a @ torch.sin(t_inc) + b @ torch.cos(t_inc) + c @ t_pow
     y_noise = y + torch.randn_like(y) * self.rand_noise_amp
-    return y.view(self.batch_size, self.dim, -1).transpose(1, 2), y_noise.view(self.batch_size, self.dim, -1).transpose(1, 2)
+    return y.view(self.batch_size, self.dim, -1), y_noise.view(self.batch_size, self.dim, -1)
 
   def forward(self):
     return self.generate_random_signal_batch()
@@ -41,7 +44,7 @@ class DataGenerator():
     clrs = plt.cm.get_cmap('prism', 7)
 
     for signal_dim in range(self.dim):
-      for num, true, true_noise, pred in zip(range(rand_y.shape[0])[:3], rand_y.detach().cpu()[:3, :, signal_dim], rand_y_noise.detach().cpu()[:3, :, signal_dim], rand_y_rec.detach().cpu()[:3][:3, :, signal_dim]):
+      for num, true, true_noise, pred in zip(range(rand_y.shape[0])[:3], rand_y.detach().cpu()[:3, signal_dim, :], rand_y_noise.detach().cpu()[:3, signal_dim, :], rand_y_rec.detach().cpu()[:3][:3, signal_dim, :]):
         ax[0][signal_dim].plot(true, ls='', c=clrs(num), label='signal')
         ax[0][signal_dim].plot(true_noise, ls=':', c=clrs(num), label='signal + noise')
         ax[0][signal_dim].plot(pred, ls='--', c=clrs(num), label='reconstructed')
@@ -56,7 +59,7 @@ class SinDataGenerator(DataGenerator):
   def __init__(self,
                trajectory_len=100, batch_size=32,
                rand_p=3, rand_q=1, rand_max_amp=1, rand_noise_amp=0.1,
-               signal_t_min=0, signal_t_max=100, signal_noise_amp=0.1, signal_max_amp=1):
+               signal_t_min=0, signal_t_max=100, signal_noise_amp=0.1, signal_max_amp=1, **kwargs):
     
     super().__init__(trajectory_len=trajectory_len, batch_size=batch_size,
                      rand_p=rand_p, rand_q=rand_q, rand_max_amp=rand_max_amp, rand_noise_amp=rand_noise_amp)
@@ -110,7 +113,7 @@ class LorenzDataGenerator(DataGenerator):
                trajectory_len=1000, batch_size=32,
                rand_p=3, rand_q=1, rand_max_amp=1, rand_noise_amp=0.,
                signal_t_min=0, signal_t_max=5, signal_noise_amp=0.,
-               signal_max_amp=10, sigma=10.0, rho=28.0, beta=8.0/3.0):
+               signal_max_amp=10, sigma=10.0, rho=28.0, beta=8.0/3.0, **kwargs):
     
     super().__init__(trajectory_len=trajectory_len, batch_size=batch_size,
                      rand_p=rand_p, rand_q=rand_q, rand_max_amp=rand_max_amp, rand_noise_amp=rand_noise_amp)
