@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import wandb
 from torchdiffeq import odeint_adjoint as odeint
 
-from log import plot_approximation_results, plot_reconstruction_results
 
 def train(model, optimizer, data_generator, node_criterion, rec_criterion, device, config):
 
@@ -43,8 +42,8 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, devic
 
     if itr % 10 == 0:
 
-      reconstruction_fig = plot_reconstruction_results(rand_y, rand_y_noise, rand_y_rec)
-      approximation_fig = plot_approximation_results(model, batch_t, batch_y)
+      reconstruction_fig = data_generator.plot_reconstruction_results(rand_y, rand_y_noise, rand_y_rec)
+      approximation_fig = data_generator.plot_approximation_results(model, batch_t, batch_y)
 
 
       
@@ -57,4 +56,4 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, devic
       plt.close(reconstruction_fig)
       plt.close(approximation_fig)
 
-      print(itr, node_loss.item(), rec_loss.item(), torch.max(torch.abs(pred_y.cpu().detach())))
+      print(itr, node_loss.item(), rec_loss.item(), torch.max(torch.abs(pred_y.cpu().detach())).item())

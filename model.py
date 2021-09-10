@@ -93,12 +93,12 @@ class NODESolver(nn.Module):
     self.rhs = RHS(latent_dim, rhs_n_layers, rhs_hidden_dim)
 
   def forward(self, y, t):
-    z0 = self.encoder(y[:, None, :])[:, :, 0]
+    z0 = self.encoder(y)[:, :, 0]
     pred_z = odeint(self.rhs, z0, t).to(y.device)
-    pred_y = self.decoder(pred_z).transpose(0, 1)[:, :, 0]
+    pred_y = self.decoder(pred_z).permute(1, 2, 0)
     return pred_y
 
   def autoencoder_forward(self, y): 
-    z = self.encoder(y[:, None, :])
-    pred_y = self.decoder(z.transpose(1, 2))[:, :, 0]
+    z = self.encoder(y)
+    pred_y = self.decoder(z.transpose(1, 2)).permute(1, 2, 0)
     return pred_y
