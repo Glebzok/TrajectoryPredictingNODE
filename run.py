@@ -1,5 +1,9 @@
 import argparse
 
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"  
+os.environ["CUDA_VISIBLE_DEVICES"]="6"
+
 import torch
 import torch.nn as nn
 import wandb
