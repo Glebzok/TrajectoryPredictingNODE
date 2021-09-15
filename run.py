@@ -13,7 +13,7 @@ from data import SinDataGenerator, LorenzDataGenerator
 from train import train
 from callbacks import ensure_clean_worktree, get_commit_hash
 
-DATASET = 'SIN'
+DATASET = 'LORENZ'
 
 
 if __name__ == '__main__':
@@ -78,7 +78,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'reproduce results after another refactoring'
+  experiment_name = 'full Lorenz test'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
