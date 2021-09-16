@@ -3,7 +3,11 @@ import torch.nn as nn
 from torchdiffeq import odeint_adjoint as odeint
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from mpl_toolkits.mplot3d import Axes3D
+
+import wandb
 
 class DataGenerator():
   def __init__(self, trajectory_len, batch_size,
@@ -38,21 +42,62 @@ class DataGenerator():
   def forward(self):
     return self.generate_random_signal_batch()
 
-  def plot_reconstruction_results(self, rand_y, rand_y_noise, rand_y_rec):
-    fig, ax = plt.subplots(1, self.dim, figsize=(8*self.dim, 5), squeeze=False)
+  def log_reconstruction_results(self, rand_y, rand_y_noise, rand_y_rec):
+    n_samples = 3
 
-    clrs = plt.cm.get_cmap('prism', 7)
+    log_table = np.stack([rand_y.detach().cpu()[:n_samples],
+                         rand_y_noise.detach().cpu()[:n_samples],
+                         rand_y_rec.detach().cpu()[:n_samples]]).transpose(2, 0, 1, 3) # (n_dim, 3, n_samples, T)
 
-    for signal_dim in range(self.dim):
-      for num, true, true_noise, pred in zip(range(rand_y.shape[0])[:3], rand_y.detach().cpu()[:3, signal_dim, :], rand_y_noise.detach().cpu()[:3, signal_dim, :], rand_y_rec.detach().cpu()[:3][:3, signal_dim, :]):
-        ax[0][signal_dim].plot(true, ls='', c=clrs(num), label='signal', marker='o', ms=2)
-        ax[0][signal_dim].plot(true_noise, ls='', c=clrs(num), label='signal + noise', marker='x', ms=2)
-        ax[0][signal_dim].plot(pred, c=clrs(num), label='reconstructed')
+    T = log_table.shape[-1]
 
-    return fig
+    t = np.tile(np.arange(T, dtype=np.int).reshape(1, 1, 1, -1), (1, 3, n_samples, 1))
+    signal_types = np.tile(np.arange(3, dtype=np.int).reshape(1, -1, 1, 1), (1, 1, n_samples, T))
+    sample_ids = np.tile(np.arange(n_samples, dtype=np.int).reshape(1, 1, -1, 1), (1, 3, 1, T))
 
-  def plot_approximation_results(self, model, batch_t, batch_y):
-    raise NotImplementedError()
+    log_table = np.concatenate([signal_types, sample_ids, t, log_table], axis=0) # (n_dim + 3, 3, n_samples, T)
+    log_table = log_table.transpose(1, 2, 3, 0).reshape(-1, self.dim+3)
+
+    n_rows = log_table.shape[0]
+
+    dim_labels = ['y'] if self.dim == 1 else ['x', 'y', 'z']
+    log_table = pd.DataFrame(log_table, columns=['signal_type', 'sample_id', 't'] + dim_labels)
+    log_table['signal_type'] = log_table['signal_type'].map({0: 'Signal', 1: 'Signal+noise', 2: 'Reconstructed'})
+    log_table = wandb.Table(dataframe=log_table)
+
+    return log_table
+
+  def log_approximation_results(self, model, batch_t, batch_y):
+    n_samples = 3
+
+    batch_t = torch.linspace(0, 2 * batch_t.max(), 2 * batch_t.shape[0], device=batch_t.device)
+    pred_y = model(batch_y, batch_t).detach().cpu()
+    batch_y = batch_y.detach().cpu()
+
+    T = batch_t.shape[0]
+
+    log_table = np.concatenate([batch_y[:n_samples][None, ...],
+                                pred_y[:n_samples].reshape(n_samples, self.dim, T//2, 2).permute(3, 0, 1, 2)], axis=0).transpose(2, 0, 1, 3) # (n_dim, 3, n_samples, T)
+
+    T = T // 2
+
+    t = np.tile(np.arange(T, dtype=np.int).reshape(1, 1, 1, -1), (1, 3, n_samples, 1))
+    t[:, -1, :, :] =  t[:, -1, :, :] + T
+    signal_types = np.tile(np.arange(3, dtype=np.int).reshape(1, -1, 1, 1), (1, 1, n_samples, T))
+    sample_ids = np.tile(np.arange(n_samples, dtype=np.int).reshape(1, 1, -1, 1), (1, 3, 1, T))
+
+
+    log_table = np.concatenate([signal_types, sample_ids, t, log_table], axis=0) # (n_dim + 3, 3, n_samples, T)
+    log_table = log_table.transpose(1, 2, 3, 0).reshape(-1, self.dim+3)
+
+    n_rows = log_table.shape[0]
+
+    dim_labels = ['y'] if self.dim == 1 else ['x', 'y', 'z']
+    log_table = pd.DataFrame(log_table, columns=['signal_type', 'sample_id', 't'] + dim_labels)
+    log_table['signal_type'] = log_table['signal_type'].map({0: 'Signal', 1: 'Approximated', 2: 'Extrapolated'})
+    log_table = wandb.Table(dataframe=log_table)
+
+    return log_table
 
 
 class SinDataGenerator(DataGenerator):
@@ -80,21 +125,6 @@ class SinDataGenerator(DataGenerator):
 
     return t, y
 
-  def plot_approximation_results(self, model, batch_t, batch_y):
-    fig = plt.figure(figsize=(8, 5))
-
-    clrs = plt.cm.get_cmap('prism', 7)
-
-    batch_t = torch.linspace(0, 2 * batch_t.max(), 2 * batch_t.shape[0], device=batch_t.device)
-    pred_y = model(batch_y, batch_t).detach().cpu()
-
-    batch_y = batch_y.detach().cpu()
-    
-    for num in range(3):
-      plt.plot(batch_y[num][0], ls='', c=clrs(num), label='signal', marker='o', ms=2)
-      plt.plot(pred_y[num][0], c=clrs(num), label='predicted')
-
-    return fig
 
 class LorenzRHS(nn.Module):
     def __init__(self, sigma, rho, beta):
@@ -134,20 +164,3 @@ class LorenzDataGenerator(DataGenerator):
     y = odeint(self.rhs, s0, t).permute(1, 2, 0)
     y += torch.rand_like(y) * self.signal_noise_amp
     return t, y
-
-  def plot_approximation_results(self, model, batch_t, batch_y):
-    fig = plt.figure(figsize=(8, 8))
-    ax = fig.gca(projection="3d")
-
-    clrs = plt.cm.get_cmap('prism', 7)
-
-    batch_t = torch.linspace(0, 2 * batch_t.max(), 2 * batch_t.shape[0], device=batch_t.device)
-    pred_y = model(batch_y, batch_t).detach().cpu()
-
-    batch_y = batch_y.detach().cpu()
-    
-    for num in range(3):
-      ax.plot(batch_y[num, 0, :], batch_y[num, 1, :], batch_y[num, 2, :], ls='', c=clrs(num), label='signal', alpha=0.5, marker='o', ms=2,)
-      ax.plot(pred_y[num, 0, :], pred_y[num, 1, :], pred_y[num, 2, :], c=clrs(num), label='predicted', alpha=0.5)
-
-    return fig

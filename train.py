@@ -42,18 +42,18 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, devic
 
     if itr % 10 == 0:
 
-      reconstruction_fig = data_generator.plot_reconstruction_results(rand_y, rand_y_noise, rand_y_rec)
-      approximation_fig = data_generator.plot_approximation_results(model, batch_t, batch_y)
+      reconstruction_table = data_generator.log_reconstruction_results(rand_y, rand_y_noise, rand_y_rec)
+      approximation_table = data_generator.log_approximation_results(model, batch_t, batch_y)
 
 
       
       wandb.log({'step': itr, 'node_loss': node_loss.item(), 'rec_loss': rec_loss.item(), 'max_pred_amplitude': torch.max(torch.abs(pred_y.cpu().detach())),
-                  'reconstruction_fig': reconstruction_fig, 'approximation_fig': approximation_fig
+                  'reconstruction_table': reconstruction_table, 'approximation_table': approximation_table
                   })
       
-      reconstruction_fig.clear()
-      approximation_fig.clear()
-      plt.close(reconstruction_fig)
-      plt.close(approximation_fig)
+      # reconstruction_fig.clear()
+      # approximation_fig.clear()
+      # plt.close(reconstruction_fig)
+      # plt.close(approximation_fig)
 
       print(itr, node_loss.item(), rec_loss.item(), torch.max(torch.abs(pred_y.cpu().detach())).item())

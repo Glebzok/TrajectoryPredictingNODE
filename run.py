@@ -13,7 +13,7 @@ from data import SinDataGenerator, LorenzDataGenerator
 from train import train
 from callbacks import ensure_clean_worktree, get_commit_hash
 
-DATASET = 'LORENZ'
+DATASET = 'SIN'
 
 
 if __name__ == '__main__':
@@ -30,7 +30,7 @@ if __name__ == '__main__':
   if DATASET == 'SIN':   
 
     data_params = {'latent_dim': 5, 'signal_dim': 1,
-                  'trajectory_len': 200, 'batch_size': 32, 'signal_max_amp': 3,
+                  'trajectory_len': 200, 'batch_size': 256, 'signal_max_amp': 3,
                   'signal_t_min': 0, 'signal_t_max': 4*3.14, 'signal_noise_amp': 0.2,
                   'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
 
