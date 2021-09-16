@@ -76,8 +76,9 @@ class DataGenerator():
 
     T = batch_t.shape[0]
 
-    log_table = np.concatenate([batch_y[:n_samples][None, ...],
-                                pred_y[:n_samples].reshape(n_samples, self.dim, T//2, 2).permute(3, 0, 1, 2)], axis=0).transpose(2, 0, 1, 3) # (n_dim, 3, n_samples, T)
+    log_table = np.stack([batch_y[:n_samples],
+                          pred_y[:n_samples][:, :, :T//2],
+                          pred_y[:n_samples][:, :, T//2:]], axis=0).transpose(2, 0, 1, 3) # (n_dim, 3, n_samples, T)
 
     T = T // 2
 

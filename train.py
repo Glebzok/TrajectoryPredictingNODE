@@ -50,10 +50,5 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, devic
       wandb.log({'step': itr, 'node_loss': node_loss.item(), 'rec_loss': rec_loss.item(), 'max_pred_amplitude': torch.max(torch.abs(pred_y.cpu().detach())),
                   'reconstruction_table': reconstruction_table, 'approximation_table': approximation_table
                   })
-      
-      # reconstruction_fig.clear()
-      # approximation_fig.clear()
-      # plt.close(reconstruction_fig)
-      # plt.close(approximation_fig)
 
       print(itr, node_loss.item(), rec_loss.item(), torch.max(torch.abs(pred_y.cpu().detach())).item())
