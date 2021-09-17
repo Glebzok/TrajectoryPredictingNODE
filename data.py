@@ -154,12 +154,13 @@ class LorenzDataGenerator(DataGenerator):
     self.signal_noise_amp = signal_noise_amp
     self.signal_max_amp = signal_max_amp
         
+    self.rho = rho
     self.rhs = LorenzRHS(sigma, rho, beta)
 
     self.dim = 3
 
   def generate_signal_batch(self):
-    s0 = (torch.rand((self.batch_size, 3)) - 0.5) * 2 * self.signal_max_amp
+    s0 = (torch.rand((self.batch_size, 3)) - 0.5) * 2 * self.signal_max_amp + torch.tensor([0., 0., self.rho]).view(1, 3)
     t = torch.linspace(self.signal_t_min, self.signal_t_max, self.trajectory_len)
 
     y = odeint(self.rhs, s0, t).permute(1, 2, 0)# / self.signal_max_amp

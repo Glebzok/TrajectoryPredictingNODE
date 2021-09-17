@@ -92,7 +92,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Smaller cude Lorenz with new plots'
+  experiment_name = 'Smaller cube moved to [0, 0, rho] Lorenz with new plots'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
