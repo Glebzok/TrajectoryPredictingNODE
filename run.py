@@ -13,7 +13,7 @@ from data import SinDataGenerator, LorenzDataGenerator
 from train import train
 from callbacks import ensure_clean_worktree, get_commit_hash
 
-DATASET = 'SIN'
+DATASET = 'LORENZ'
 
 
 if __name__ == '__main__':
@@ -43,10 +43,10 @@ if __name__ == '__main__':
   elif DATASET == 'LORENZ':
 
     data_params = {'latent_dim': 5, 'signal_dim': 3,
-                  'trajectory_len': 1000, 'batch_size': 32, 'signal_max_amp': 10,
+                  'trajectory_len': 1000, 'batch_size': 256, 'signal_max_amp': 10,
                   'sigma': 10.0, 'rho':28.0, 'beta':8.0/3.0,
                   'signal_t_min': 0, 'signal_t_max': 5, 'signal_noise_amp': 0,
-                  'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0}
+                  'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 10, 'rand_noise_amp': 0}
 
     model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 5,
                     'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
@@ -78,7 +78,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Sin with new plots'
+  experiment_name = 'Lorenz with new plots'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
