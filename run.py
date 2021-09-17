@@ -90,7 +90,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Lorenz with new plots'
+  experiment_name = 'Naively scaled Lorenz with new plots'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
