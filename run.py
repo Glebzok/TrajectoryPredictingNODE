@@ -9,6 +9,7 @@ import torch.nn as nn
 import wandb
 
 import numpy as np
+import random
 
 from model import NODESolver
 from data import SinDataGenerator, LorenzDataGenerator
