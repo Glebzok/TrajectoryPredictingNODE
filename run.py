@@ -8,6 +8,8 @@ import torch
 import torch.nn as nn
 import wandb
 
+import numpy as np
+
 from model import NODESolver
 from data import SinDataGenerator, LorenzDataGenerator
 from train import train
