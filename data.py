@@ -162,6 +162,6 @@ class LorenzDataGenerator(DataGenerator):
     s0 = (torch.rand((self.batch_size, 3)) - 0.5) * 2 * self.signal_max_amp
     t = torch.linspace(self.signal_t_min, self.signal_t_max, self.trajectory_len)
 
-    y = odeint(self.rhs, s0, t).permute(1, 2, 0)
+    y = odeint(self.rhs, s0, t).permute(1, 2, 0) / self.signal_max_amp
     y += torch.rand_like(y) * self.signal_noise_amp
     return t, y
