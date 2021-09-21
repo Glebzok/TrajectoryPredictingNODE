@@ -57,7 +57,7 @@ if __name__ == '__main__':
   elif DATASET == 'SPIRAL':
 
     data_params = {'latent_dim': 5, 'signal_dim': 2,
-                  'trajectory_len': 100, 'batch_size': 256, 'signal_max_amp': 2,
+                  'trajectory_len': 1000, 'batch_size': 256, 'signal_max_amp': 2,
                   'signal_t_min': 0, 'signal_t_max': 100, 'signal_noise_amp': 0.2,
                   'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
 
