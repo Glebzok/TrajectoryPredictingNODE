@@ -106,7 +106,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Spiral DE (test)'
+  experiment_name = 'Spiral DE (test) more sampling points'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
