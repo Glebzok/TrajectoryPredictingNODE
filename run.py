@@ -12,11 +12,11 @@ import numpy as np
 import random
 
 from model import NODESolver
-from data import SinDataGenerator, LorenzDataGenerator
+from data import SinDataGenerator, LorenzDataGenerator, SpiralDataGenerator
 from train import train
 from callbacks import ensure_clean_worktree, get_commit_hash
 
-DATASET = 'LORENZ'
+DATASET = 'SPIRAL'
 
 seed = 42
 os.environ['PYTHONHASHSEED'] = str(seed)
@@ -53,6 +53,20 @@ if __name__ == '__main__':
                     'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
 
     data_generator = SinDataGenerator(**data_params)
+  
+  elif DATASET == 'SPIRAL':
+
+    data_params = {'latent_dim': 5, 'signal_dim': 2,
+                  'trajectory_len': 100, 'batch_size': 256, 'signal_max_amp': 2,
+                  'signal_t_min': 0, 'signal_t_max': 100, 'signal_noise_amp': 0.2,
+                  'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
+
+    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 5,
+                    'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
+                    'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
+
+    data_generator = SpiralDataGenerator(**data_params)
+
 
   elif DATASET == 'LORENZ':
 
@@ -92,7 +106,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Smaller cube moved to [0, 0, rho] plus naive scaling + more higher freqs for random data Lorenz with new plots'
+  experiment_name = 'Spiral DE (test)'
 
   wandb.init(project='Sinus approximation',
               notes='testing',

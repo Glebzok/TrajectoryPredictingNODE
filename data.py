@@ -60,7 +60,7 @@ class DataGenerator():
 
     n_rows = log_table.shape[0]
 
-    dim_labels = ['y'] if self.dim == 1 else ['x', 'y', 'z']
+    dim_labels = ['y'] if self.dim == 1 else ['x', 'y'] if self.dim == 2 else ['x', 'y', 'z']
     log_table = pd.DataFrame(log_table, columns=['signal_type', 'sample_id', 't'] + dim_labels)
     log_table['signal_type'] = log_table['signal_type'].map({0: 'Signal', 1: 'Signal+noise', 2: 'Reconstructed'})
     log_table = wandb.Table(dataframe=log_table)
@@ -93,7 +93,7 @@ class DataGenerator():
 
     n_rows = log_table.shape[0]
 
-    dim_labels = ['y'] if self.dim == 1 else ['x', 'y', 'z']
+    dim_labels = ['y'] if self.dim == 1 else ['x', 'y'] if self.dim == 2 else ['x', 'y', 'z']
     log_table = pd.DataFrame(log_table, columns=['signal_type', 'sample_id', 't'] + dim_labels)
     log_table['signal_type'] = log_table['signal_type'].map({0: 'Signal', 1: 'Approximated', 2: 'Extrapolated'})
     log_table = wandb.Table(dataframe=log_table)
@@ -122,6 +122,44 @@ class SinDataGenerator(DataGenerator):
     amp = torch.rand(self.batch_size) * self.signal_max_amp
     t = torch.linspace(self.signal_t_min, self.signal_t_max, self.trajectory_len)
     y = torch.stack([amp_ * torch.sin(t + t0_).T for t0_, amp_ in zip(t0, amp)], dim=0).view(self.batch_size, 1, -1)
+    y += torch.rand_like(y) * self.signal_noise_amp
+
+    return t, y
+
+
+class SpiralRHS(nn.Module):
+    def __init__(self):
+      super().__init__()
+      self.A = torch.tensor([[-0.1, 2.0],
+                             [-2.0, -0.1]], dtype=torch.float32)
+
+    def forward(self, t, state):
+      return (self.A @ (state.transpose(1, 0) ** 3)).transpose(1, 0)
+
+
+class SpiralDataGenerator(DataGenerator):
+  def __init__(self,
+               trajectory_len=100, batch_size=32,
+               rand_p=3, rand_q=1, rand_max_amp=1, rand_noise_amp=0.1,
+               signal_t_min=0, signal_t_max=100, signal_noise_amp=0.1, signal_max_amp=1, **kwargs):
+    
+    super().__init__(trajectory_len=trajectory_len, batch_size=batch_size,
+                     rand_p=rand_p, rand_q=rand_q, rand_max_amp=rand_max_amp, rand_noise_amp=rand_noise_amp)
+
+    self.signal_t_min = signal_t_min
+    self.signal_t_max = signal_t_max
+    self.signal_noise_amp = signal_noise_amp
+    self.signal_max_amp = signal_max_amp
+
+    self.rhs = SpiralRHS()
+
+    self.dim = 2
+
+  def generate_signal_batch(self):
+    y0 = torch.rand(self.batch_size, 2) * self.signal_max_amp
+    t = torch.linspace(self.signal_t_min, self.signal_t_max, self.trajectory_len)
+
+    y = odeint(self.rhs, y0, t).permute(1, 2, 0)
     y += torch.rand_like(y) * self.signal_noise_amp
 
     return t, y
