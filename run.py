@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd': 0.2, 'n_iter': 10000, 'n_batch_steps': 1, 'lr': 1e-3}
+  training_params = {'lambd': 0.2, 'n_iter': 10000, 'n_batch_steps': 1, 'lr': 1e-2}
   
   if DATASET == 'SIN':   
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
   elif DATASET == 'SPIRAL':
 
     data_params = {'latent_dim': 5, 'signal_dim': 2,
-                  'trajectory_len': 100, 'batch_size': 256, 'signal_max_amp': 2,
+                  'trajectory_len': 100, 'batch_size': 1024, 'signal_max_amp': 2,
                   'signal_t_min': 0, 'signal_t_max': 10, 'signal_noise_amp': 0.2,
                   'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
 
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Spiral DE (test) more sampling points smaller integration time'
+  experiment_name = 'Spiral DE (test) more sampling points smaller integration time larger bs and lrs'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
