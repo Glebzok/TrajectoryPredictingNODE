@@ -57,8 +57,8 @@ if __name__ == '__main__':
   elif DATASET == 'SPIRAL':
 
     data_params = {'latent_dim': 5, 'signal_dim': 2,
-                  'trajectory_len': 100, 'batch_size': 1024, 'signal_max_amp': 2,
-                  'signal_t_min': 0, 'signal_t_max': 10, 'signal_noise_amp': 0.2,
+                  'trajectory_len': 200, 'batch_size': 1024, 'signal_max_amp': 2,
+                  'signal_t_min': 0, 'signal_t_max': 20, 'signal_noise_amp': 0.2,
                   'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
 
     model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 5,
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Spiral DE (test) more sampling points smaller integration time larger bs and lrs'
+  experiment_name = 'Spiral DE (test) more sampling points larger integration time larger bs and lrs'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
