@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd': 0.2, 'n_iter': 10000, 'n_batch_steps': 1, 'lr': 1e-2}
+  training_params = {'lambd': 1e-2, 'n_iter': 10000, 'n_batch_steps': 1, 'lr': 1e-2}
   
   if DATASET == 'SIN':   
 
@@ -91,8 +91,8 @@ if __name__ == '__main__':
 
   optimizer = torch.optim.Adam(model.parameters(), lr=training_params['lr'])
 
-  node_criterion = nn.L1Loss()
-  rec_criterion = nn.L1Loss()
+  node_criterion = nn.MSELoss()
+  rec_criterion = nn.MSELoss()
 
 
   config = {**training_params, **data_params, **model_params, 'opimizer': optimizer.__class__.__name__,
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Spiral DE (test) more sampling points larger integration time larger bs and lrs'
+  experiment_name = 'Spiral DE MSELoss and smaller lambda'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
