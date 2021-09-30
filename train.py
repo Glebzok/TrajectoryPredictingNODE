@@ -15,16 +15,17 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, rhs_c
     rand_y, rand_y_noise = rand_y.to(device), rand_y_noise.to(device)
 
     if itr == 0:
-      torch.onnx.export(model.encoder, batch_y, 'encoder.onnx')
-      wandb.save('encoder.onnx')
+      with torch.no_grad():
+        torch.onnx.export(model.encoder, batch_y, 'encoder.onnx')
+        wandb.save('encoder.onnx')
 
-      z0 = model.encoder(batch_y)[:, :, 0]
-      torch.onnx.export(model.rhs, (batch_t, z0), 'rhs.onnx')
-      wandb.save('rhs.onnx')
+        z0 = model.encoder(batch_y)[:, :, 0]
+        torch.onnx.export(model.rhs, (batch_t, z0), 'rhs.onnx')
+        wandb.save('rhs.onnx')
 
-      pred_z = odeint(model.rhs, z0, batch_t).to(batch_y.device)
-      torch.onnx.export(model.decoder, pred_z, 'decoder.onnx')
-      wandb.save('decoder.onnx')
+        pred_z = odeint(model.rhs, z0, batch_t).to(batch_y.device)
+        torch.onnx.export(model.decoder, pred_z, 'decoder.onnx')
+        wandb.save('decoder.onnx')
 
     for _ in range(config['n_batch_steps']):
       z = model.encoder(batch_y)
