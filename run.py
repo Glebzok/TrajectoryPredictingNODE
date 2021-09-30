@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd': 1e-2, 'n_iter': 10000, 'n_batch_steps': 1, 'lr': 1e-2}
+  training_params = {'lambd1': 1e-2, 'lambd2': 1e-2, 'n_iter': 10000, 'n_batch_steps': 1, 'lr': 1e-2}
   
   if DATASET == 'SIN':   
 
@@ -93,10 +93,12 @@ if __name__ == '__main__':
 
   node_criterion = nn.MSELoss()
   rec_criterion = nn.MSELoss()
+  rhs_criterion = nn.MSELoss()
 
 
   config = {**training_params, **data_params, **model_params, 'opimizer': optimizer.__class__.__name__,
-            'node_criterion': node_criterion.__class__.__name__, 'rec_criterion': rec_criterion.__class__.__name__}
+            'node_criterion': node_criterion.__class__.__name__, 'rec_criterion': rec_criterion.__class__.__name__,
+            'rhs_criterion': rhs_criterion.__class__.__name__}
 
   if args.dev:
     config['n_iter'] = 1
@@ -106,7 +108,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Spiral DE MSELoss and smaller lambda'
+  experiment_name = 'RHS loss added'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
@@ -116,4 +118,4 @@ if __name__ == '__main__':
               mode=mode)
   
   wandb.watch(model)
-  train(model, optimizer, data_generator, node_criterion, rec_criterion, device, config)
+  train(model, optimizer, data_generator, node_criterion, rec_criterion, rhs_criterion, device, config)

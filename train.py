@@ -4,7 +4,7 @@ import wandb
 from torchdiffeq import odeint_adjoint as odeint
 
 
-def train(model, optimizer, data_generator, node_criterion, rec_criterion, device, config):
+def train(model, optimizer, data_generator, node_criterion, rec_criterion, rhs_criterion, device, config):
 
   for itr in range(config['n_iter']):
 
@@ -27,13 +27,17 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, devic
       wandb.save('decoder.onnx')
 
     for _ in range(config['n_batch_steps']):
-      pred_y = model(batch_y, batch_t)
+      z = model.encoder(batch_y)
+      pred_z = odeint(model.rhs, z[:, :, 0], batch_t).to(batch_y.device)
+      rhs_loss = rhs_criterion(pred_z.permute(1, 2, 0), z)
+
+      pred_y = model.decoder(pred_z).permute(1, 2, 0)
       node_loss = node_criterion(pred_y, batch_y)
       
       rand_y_rec = model.autoencoder_forward(rand_y_noise)
       rec_loss = rec_criterion(rand_y_rec, rand_y)
       
-      loss = node_loss + config['lambd'] * rec_loss
+      loss = node_loss + config['lambd1'] * rec_loss + config['lambd2'] * rhs_loss
 
       optimizer.zero_grad()
       loss.backward()
@@ -47,8 +51,10 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, devic
 
 
       
-      wandb.log({'step': itr, 'node_loss': node_loss.item(), 'rec_loss': rec_loss.item(), 'max_pred_amplitude': torch.max(torch.abs(pred_y.cpu().detach())),
-                  'reconstruction_table': reconstruction_table, 'approximation_table': approximation_table
+      wandb.log({'step': itr,
+                 'node_loss': node_loss.item(), 'rec_loss': rec_loss.item(), 'rhs_loss': rhs_loss.item(),
+                 'max_pred_amplitude': torch.max(torch.abs(pred_y.cpu().detach())),
+                 'reconstruction_table': reconstruction_table, 'approximation_table': approximation_table
                   })
 
-      print(itr, node_loss.item(), rec_loss.item(), torch.max(torch.abs(pred_y.cpu().detach())).item())
+      print(itr, node_loss.item(), rec_loss.item(), rhs_loss.item(), torch.max(torch.abs(pred_y.cpu().detach())).item())
