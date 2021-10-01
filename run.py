@@ -16,7 +16,7 @@ from data import SinDataGenerator, LorenzDataGenerator, SpiralDataGenerator
 from train import train
 from callbacks import ensure_clean_worktree, get_commit_hash
 
-DATASET = 'SIN'
+DATASET = 'LORENZ'
 
 seed = 42
 os.environ['PYTHONHASHSEED'] = str(seed)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Transformer encoder with Sin and correct prediction|weight update order'
+  experiment_name = 'Unet encoder Lorenz'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
