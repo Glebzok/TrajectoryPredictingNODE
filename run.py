@@ -2,7 +2,7 @@ import argparse
 
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"  
-os.environ["CUDA_VISIBLE_DEVICES"]="6"
+os.environ["CUDA_VISIBLE_DEVICES"]="5"
 
 import torch
 import torch.nn as nn
@@ -48,7 +48,7 @@ if __name__ == '__main__':
                   'signal_t_min': 0, 'signal_t_max': 4*3.14, 'signal_noise_amp': 0.2,
                   'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
 
-    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 5,
+    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 8,
                     'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
                     'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
 
@@ -76,7 +76,7 @@ if __name__ == '__main__':
                   'signal_t_min': 0, 'signal_t_max': 5, 'signal_noise_amp': 0,
                   'rand_p': 10, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0}
 
-    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 4,
+    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 5,
                     'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
                     'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'UnetLike encoder with Sin and correct prediction|weight update order'
+  experiment_name = 'Transformer encoder with Sin and correct prediction|weight update order'
 
   wandb.init(project='Sinus approximation',
               notes='testing',
