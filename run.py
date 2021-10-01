@@ -16,7 +16,7 @@ from data import SinDataGenerator, LorenzDataGenerator, SpiralDataGenerator
 from train import train
 from callbacks import ensure_clean_worktree, get_commit_hash
 
-DATASET = 'SPIRAL'
+DATASET = 'SIN'
 
 seed = 42
 os.environ['PYTHONHASHSEED'] = str(seed)
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd1': 1e-2, 'lambd2': 1e-2, 'n_iter': 10000, 'n_batch_steps': 1, 'lr': 1e-2}
+  training_params = {'lambd1': 1e-2, 'lambd2': 1e-2, 'n_iter': 10000, 'lr': 1e-2}
   
   if DATASET == 'SIN':   
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'UnetLike encoder'
+  experiment_name = 'UnetLike encoder with Sin and correct prediction|weight update order'
 
   wandb.init(project='Sinus approximation',
               notes='testing',

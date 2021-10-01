@@ -97,6 +97,25 @@ class UNetLikeLatentSpaceEncoder(nn.Module):
         return x
 
 
+class TransformerEncoder(nn.Module):
+  def __init__(self, latent_dim, signal_dim, n_layers, nhead, dim_feedforward, dropout, activation):
+    super().__init__()
+
+    encoder_layer = nn.TransformerEncoderLayer(d_model=signal_dim, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, activation=activation)
+    self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+
+    self.linear = nn.Linear(nhead, latent_dim)
+
+  def forward(self, x):
+    print(x.shape)
+    x = self.encoder_layer(x)
+    print(x.shape)
+    x = self.linear(x)
+    print(x.shape)
+
+    return x
+
+
 class RHS(nn.Module):
   def __init__(self, system_dim, n_layers, hidden_dim):
     super().__init__()
@@ -131,6 +150,7 @@ class NODESolver(nn.Module):
     self.decoder = LatentSpaceDecoder(latent_dim, signal_dim, decoder_n_layers, decoder_hidden_dim)
     # self.encoder = LatentSpaceEncoder(latent_dim, signal_dim, encoder_n_layers, encoder_hidden_channels)
     self.encoder = UNetLikeLatentSpaceEncoder(latent_dim, signal_dim, encoder_hidden_channels, encoder_n_layers)
+    # self.encoder = TransformerEncoder(latent_dim, signal_dim, encoder_n_layers, )
     self.rhs = RHS(latent_dim, rhs_n_layers, rhs_hidden_dim)
 
   def forward(self, y, t):

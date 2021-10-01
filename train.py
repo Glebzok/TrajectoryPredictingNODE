@@ -27,23 +27,20 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, rhs_c
         torch.onnx.export(model.decoder, pred_z, 'decoder.onnx')
         wandb.save('decoder.onnx')
 
-    for _ in range(config['n_batch_steps']):
-      z = model.encoder(batch_y)
-      pred_z = odeint(model.rhs, z[:, :, 0], batch_t).to(batch_y.device)
-      rhs_loss = rhs_criterion(pred_z.permute(1, 2, 0), z)
+    z = model.encoder(batch_y)
+    pred_z = odeint(model.rhs, z[:, :, 0], batch_t).to(batch_y.device)
+    rhs_loss = rhs_criterion(pred_z.permute(1, 2, 0), z)
 
-      pred_y = model.decoder(pred_z).permute(1, 2, 0)
-      node_loss = node_criterion(pred_y, batch_y)
-      
-      rand_y_rec = model.autoencoder_forward(rand_y_noise)
-      rec_loss = rec_criterion(rand_y_rec, rand_y)
-      
-      loss = node_loss + config['lambd1'] * rec_loss + config['lambd2'] * rhs_loss
+    pred_y = model.decoder(pred_z).permute(1, 2, 0)
+    node_loss = node_criterion(pred_y, batch_y)
+    
+    rand_y_rec = model.autoencoder_forward(rand_y_noise)
+    rec_loss = rec_criterion(rand_y_rec, rand_y)
+    
+    loss = node_loss + config['lambd1'] * rec_loss + config['lambd2'] * rhs_loss
 
-      optimizer.zero_grad()
-      loss.backward()
-      optimizer.step()
-
+    optimizer.zero_grad()
+    loss.backward()
 
     if itr % 10 == 0:
 
@@ -59,3 +56,6 @@ def train(model, optimizer, data_generator, node_criterion, rec_criterion, rhs_c
                   })
 
       print(itr, node_loss.item(), rec_loss.item(), rhs_loss.item(), torch.max(torch.abs(pred_y.cpu().detach())).item())
+
+
+    optimizer.step()
