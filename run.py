@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
   else:
     ensure_clean_worktree()
-    mode = 'enabled'  
+    mode = 'online'  
 
   experiment_name = 'Transformer encoder Sin smaller lambdas'
 
