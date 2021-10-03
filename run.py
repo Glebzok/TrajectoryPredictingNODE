@@ -13,10 +13,8 @@ import random
 
 from model import NODESolver
 from data import SinDataGenerator, LorenzDataGenerator, SpiralDataGenerator
-from train import train
+from train import Trainer
 from callbacks import ensure_clean_worktree, get_commit_hash
-
-DATASET = 'LORENZ'
 
 seed = 42
 os.environ['PYTHONHASHSEED'] = str(seed)
@@ -30,6 +28,11 @@ np.random.seed(seed)
 random.seed(seed)
 
 
+
+DATASET = 'SIN'
+
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("--dev", help="running in dev mode", action="store_true")
@@ -39,7 +42,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd1': 1e-2, 'lambd2': 1e-2, 'n_iter': 10000, 'lr': 1e-2}
+  training_params = {'lambd1': 1e-3, 'lambd2': 1e-4, 'n_iter': 10000, 'lr': 1e-2}
   
   if DATASET == 'SIN':   
 
@@ -102,20 +105,20 @@ if __name__ == '__main__':
 
   if args.dev:
     config['n_iter'] = 1
-    mode = 'offline'
+    mode = 'disabled'
 
   else:
     ensure_clean_worktree()
-    mode = 'online'  
+    mode = 'enabled'  
 
-  experiment_name = 'Unet encoder Lorenz'
+  experiment_name = 'Transformer encoder Sin smaller lambdas'
 
   wandb.init(project='Sinus approximation',
-              notes='testing',
+              notes='',
               tags=[],
               config=config,
               name=experiment_name,
               mode=mode)
   
   wandb.watch(model)
-  train(model, optimizer, data_generator, node_criterion, rec_criterion, rhs_criterion, device, config)
+  Trainer(model, optimizer, data_generator, node_criterion, rec_criterion, rhs_criterion).train(device, config)

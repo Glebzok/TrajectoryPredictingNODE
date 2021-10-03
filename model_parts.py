@@ -7,7 +7,6 @@ import math
 
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ACT) * 2"""
-
     def __init__(self, in_channels, out_channels, act, mid_channels=None):
         super().__init__()
         if act == 'ReLU':
@@ -34,7 +33,6 @@ class DoubleConv(nn.Module):
 
 class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
-
     def __init__(self, in_channels, out_channels, act):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
@@ -48,7 +46,6 @@ class Down(nn.Module):
 
 class Up(nn.Module):
     """Upscaling then double conv"""
-
     def __init__(self, in_channels, out_channels, act):
         super().__init__()
         self.up = nn.ConvTranspose1d(in_channels, in_channels // 2, kernel_size=2, stride=2)
@@ -72,7 +69,6 @@ class OutConv(nn.Module):
 
 
 class PositionalEncoding(nn.Module):
-
     def __init__(self, d_model, dropout, max_len):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)

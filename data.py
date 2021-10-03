@@ -5,7 +5,6 @@ from torchdiffeq import odeint_adjoint as odeint
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from mpl_toolkits.mplot3d import Axes3D
 
 import wandb
 
@@ -71,7 +70,8 @@ class DataGenerator():
     n_samples = 3
 
     batch_t = torch.linspace(0, 2 * batch_t.max(), 2 * batch_t.shape[0], device=batch_t.device)
-    pred_y = model(batch_y, batch_t).detach().cpu()
+    _, _, pred_y = model(batch_y, batch_t)
+    pred_y = pred_y.detach().cpu()
     batch_y = batch_y.detach().cpu()
 
     T = batch_t.shape[0]

@@ -1,61 +1,67 @@
 import torch
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 import wandb
 from torchdiffeq import odeint_adjoint as odeint
 
 
-def train(model, optimizer, data_generator, node_criterion, rec_criterion, rhs_criterion, device, config):
+class Trainer():
+  def __init__(self, model, optimizer, data_generator, node_criterion, rec_criterion, rhs_criterion):
+    self.model = model
+    self.optimizer = optimizer
+    self.data_generator = data_generator
+    self.node_criterion = node_criterion
+    self.rec_criterion = rec_criterion
+    self.rhs_criterion = rhs_criterion
 
-  for itr in range(config['n_iter']):
+  def log_model(self, t, y):
+    with torch.no_grad():
+      z = self.model.encoder(y)
 
-    batch_t, batch_y = data_generator.generate_signal_batch()
-    batch_t, batch_y = batch_t.to(device), batch_y.to(device)
+      torch.onnx.export(self.model.encoder, y, 'encoder.onnx')
+      wandb.save('encoder.onnx')
 
-    rand_y, rand_y_noise = data_generator.generate_random_signal_batch()
-    rand_y, rand_y_noise = rand_y.to(device), rand_y_noise.to(device)
+      torch.onnx.export(self.model.rhs, (t, z[:, :, 0]), 'rhs.onnx')
+      wandb.save('rhs.onnx')
 
-    if itr == 0:
-      with torch.no_grad():
-        torch.onnx.export(model.encoder, batch_y, 'encoder.onnx')
-        wandb.save('encoder.onnx')
+      torch.onnx.export(self.model.decoder, z, 'decoder.onnx')
+      wandb.save('decoder.onnx')
 
-        z0 = model.encoder(batch_y)[:, :, 0]
-        torch.onnx.export(model.rhs, (batch_t, z0), 'rhs.onnx')
-        wandb.save('rhs.onnx')
-
-        pred_z = odeint(model.rhs, z0, batch_t).to(batch_y.device)
-        torch.onnx.export(model.decoder, pred_z, 'decoder.onnx')
-        wandb.save('decoder.onnx')
-
-    z = model.encoder(batch_y)
-    pred_z = odeint(model.rhs, z[:, :, 0], batch_t).to(batch_y.device)
-    rhs_loss = rhs_criterion(pred_z.permute(1, 2, 0), z)
-
-    pred_y = model.decoder(pred_z).permute(1, 2, 0)
-    node_loss = node_criterion(pred_y, batch_y)
-    
-    rand_y_rec = model.autoencoder_forward(rand_y_noise)
-    rec_loss = rec_criterion(rand_y_rec, rand_y)
-    
-    loss = node_loss + config['lambd1'] * rec_loss + config['lambd2'] * rhs_loss
-
-    optimizer.zero_grad()
-    loss.backward()
-
-    if itr % 10 == 0:
-
-      reconstruction_table = data_generator.log_reconstruction_results(rand_y, rand_y_noise, rand_y_rec)
-      approximation_table = data_generator.log_approximation_results(model, batch_t, batch_y)
-
-
+  def log_step(self, itr, t, y, rand_y, rand_y_noise, rand_y_rec, losses_dict):
+    with torch.no_grad():
+      reconstruction_table = self.data_generator.log_reconstruction_results(rand_y, rand_y_noise, rand_y_rec)
+      approximation_table = self.data_generator.log_approximation_results(self.model, t, y)
       
-      wandb.log({'step': itr,
-                 'node_loss': node_loss.item(), 'rec_loss': rec_loss.item(), 'rhs_loss': rhs_loss.item(),
-                 'max_pred_amplitude': torch.max(torch.abs(pred_y.cpu().detach())),
-                 'reconstruction_table': reconstruction_table, 'approximation_table': approximation_table
-                  })
+      wandb.log(dict(losses_dict, **{'step': itr,'reconstruction_table': reconstruction_table, 'approximation_table': approximation_table}))
 
-      print(itr, node_loss.item(), rec_loss.item(), rhs_loss.item(), torch.max(torch.abs(pred_y.cpu().detach())).item())
+  def train(self, device, config):
+    for itr in tqdm(range(config['n_iter'])):
 
+      batch_t, batch_y = self.data_generator.generate_signal_batch()
+      batch_t, batch_y = batch_t.to(device), batch_y.to(device)
 
-    optimizer.step()
+      rand_y, rand_y_noise = self.data_generator.generate_random_signal_batch()
+      rand_y, rand_y_noise = rand_y.to(device), rand_y_noise.to(device)
+
+      if itr == 0:
+        self.log_model(batch_t, batch_y)
+        
+      z, pred_z, pred_y = self.model(batch_y, batch_t)
+      rand_y_rec = self.model.autoencoder_forward(rand_y_noise)
+
+      rhs_loss = self.rhs_criterion(pred_z, z)
+      node_loss = self.node_criterion(pred_y, batch_y)
+      rec_loss = self.rec_criterion(rand_y_rec, rand_y)
+      
+      loss = node_loss + config['lambd1'] * rec_loss + config['lambd2'] * rhs_loss
+
+      self.optimizer.zero_grad()
+      loss.backward()
+
+      if itr % 10 == 0:
+        losses = {'node_loss': node_loss.item(), 'rec_loss': rec_loss.item(), 'rhs_loss': rhs_loss.item(),
+                  'max_pred_amplitude': torch.max(torch.abs(pred_y.cpu().detach()))}
+        
+        self.log_step(itr, batch_t, batch_y, rand_y, rand_y_noise, rand_y_rec, losses)
+
+      self.optimizer.step()
