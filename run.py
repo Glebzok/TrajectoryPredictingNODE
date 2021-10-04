@@ -2,7 +2,7 @@ import argparse
 
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"  
-os.environ["CUDA_VISIBLE_DEVICES"]="5"
+os.environ["CUDA_VISIBLE_DEVICES"]="6"
 
 import torch
 import torch.nn as nn
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd1': 1e-3, 'lambd2': 1e-4, 'n_iter': 10000, 'lr': 1e-2}
+  training_params = {'lambd1': 1e-2, 'lambd2': 1e-3, 'n_iter': 10000, 'lr': 1e-2}
   
   if DATASET == 'SIN':   
 
@@ -51,7 +51,7 @@ if __name__ == '__main__':
                   'signal_t_min': 0, 'signal_t_max': 4*3.14, 'signal_noise_amp': 0.2,
                   'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
 
-    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 8,
+    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 64,
                     'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
                     'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
 
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'Transformer encoder Sin smaller lambdas'
+  experiment_name = 'Transformer encoder Sin larger lambdas, more heads and channels'
 
   wandb.init(project='Sinus approximation',
               notes='',

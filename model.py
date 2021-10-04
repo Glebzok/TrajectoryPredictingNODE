@@ -16,7 +16,7 @@ class NODESolver(nn.Module):
     self.decoder = FCLatentSpaceDecoder(latent_dim, signal_dim, decoder_n_layers, decoder_hidden_dim)
     # self.encoder = ConvLatentSpaceEncoder(latent_dim, signal_dim, encoder_n_layers, encoder_hidden_channels)
     # self.encoder = UNetLikeLatentSpaceEncoder(latent_dim, signal_dim, encoder_hidden_channels, encoder_n_layers)
-    self.encoder = TransformerLatentSpaceEncoder(latent_dim, signal_dim, encoder_n_layers, 4, encoder_hidden_channels, 0, 'relu')
+    self.encoder = TransformerLatentSpaceEncoder(latent_dim, signal_dim, encoder_n_layers, 8, encoder_hidden_channels, 0, 'relu')
     self.rhs = FCRHS(latent_dim, rhs_n_layers, rhs_hidden_dim)
 
   def forward(self, y, t):
