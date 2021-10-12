@@ -61,8 +61,8 @@ if __name__ == '__main__':
 
     data_params = {'latent_dim': 5, 'signal_dim': 2,
                   'trajectory_len': 200, 'batch_size': 256, 'signal_max_amp': 2,
-                  'signal_t_min': 0, 'signal_t_max': 20, 'signal_noise_amp': 0.2,
-                  'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.2}
+                  'signal_t_min': 0, 'signal_t_max': 20, 'signal_noise_amp': 0.1,
+                  'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.1}
 
     model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 256,
                     'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'RoFormer encoder SPIRAL smaller lr smaller lambdas'
+  experiment_name = 'RoFormer encoder SPIRAL smaller lr smaller lambdas, 0.1 noise'
 
   wandb.init(project='Sinus approximation',
               notes='',
