@@ -2,7 +2,7 @@ import argparse
 
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"  
-os.environ["CUDA_VISIBLE_DEVICES"]="6"
+os.environ["CUDA_VISIBLE_DEVICES"]="5"
 
 import torch
 import torch.nn as nn
@@ -29,7 +29,7 @@ random.seed(seed)
 
 
 
-DATASET = 'SIN'
+DATASET = 'SPIRAL'
 
 
 
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'RoFormer encoder SIN smaller lr larger lambdas'
+  experiment_name = 'RoFormer encoder SPIRAL smaller lr larger lambdas'
 
   wandb.init(project='Sinus approximation',
               notes='',
