@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd1': 1e-1, 'lambd2': 1e-2, 'n_iter': 10000, 'lr': 1e-3}
+  training_params = {'lambd1': 1e-2, 'lambd2': 1e-2, 'n_iter': 10000, 'lr': 1e-4}
   
   if DATASET == 'SIN':   
 
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'RoFormer encoder SPIRAL smaller lr larger lambdas'
+  experiment_name = 'RoFormer encoder SPIRAL smaller lr smaller lambdas'
 
   wandb.init(project='Sinus approximation',
               notes='',
