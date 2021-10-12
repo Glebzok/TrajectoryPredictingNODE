@@ -122,7 +122,7 @@ class SinDataGenerator(DataGenerator):
     amp = torch.rand(self.batch_size) * self.signal_max_amp
     t = torch.linspace(self.signal_t_min, self.signal_t_max, self.trajectory_len)
     y = torch.stack([amp_ * torch.sin(t + t0_).T for t0_, amp_ in zip(t0, amp)], dim=0).view(self.batch_size, 1, -1)
-    y += torch.rand_like(y) * self.signal_noise_amp
+    y += torch.randn_like(y) * self.signal_noise_amp
 
     return t, y
 
@@ -160,7 +160,7 @@ class SpiralDataGenerator(DataGenerator):
     t = torch.linspace(self.signal_t_min, self.signal_t_max, self.trajectory_len)
 
     y = odeint(self.rhs, y0, t).permute(1, 2, 0)
-    y += torch.rand_like(y) * self.signal_noise_amp
+    y += torch.randn_like(y) * self.signal_noise_amp
 
     return t, y
 
@@ -202,5 +202,5 @@ class LorenzDataGenerator(DataGenerator):
     t = torch.linspace(self.signal_t_min, self.signal_t_max, self.trajectory_len)
 
     y = (odeint(self.rhs, s0, t).permute(1, 2, 0) - torch.tensor([0., 0., self.rho]).view(1, 3, 1)) / 10
-    y += torch.rand_like(y) * self.signal_noise_amp
+    y += torch.randn_like(y) * self.signal_noise_amp
     return t, y
