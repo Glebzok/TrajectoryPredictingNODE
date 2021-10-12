@@ -18,7 +18,8 @@ class Trainer():
     with torch.no_grad():
       z = self.model.encoder(y)
 
-      torch.onnx.export(self.model.encoder, y, 'encoder.onnx')
+      torch.onnx.export(self.model.encoder.to('cpu'), y.to('cpu'), 'encoder.onnx', opset_version=11)
+      self.model.encoder.to(y.device)
       wandb.save('encoder.onnx')
 
       torch.onnx.export(self.model.rhs, (t, z[:, :, 0]), 'rhs.onnx')
