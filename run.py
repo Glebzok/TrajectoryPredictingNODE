@@ -1,8 +1,7 @@
 import argparse
 
 import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"  
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  
 
 import torch
 import torch.nn as nn
@@ -28,17 +27,19 @@ np.random.seed(seed)
 random.seed(seed)
 
 
-
-DATASET = 'SIN'
-
-
-
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("--dev", help="running in dev mode", action="store_true")
+  parser.add_argument("-device", help="cuda device bus ID", type=str)
+  parser.add_argument("-dataset", help="name of the dataset", type=str)
+  parser.add_argument("-experiment", help="name of the experiment", type=str)
+
   args = parser.parse_args()
 
-  wandb.login()
+  os.environ["CUDA_VISIBLE_DEVICES"] = args.device
+  DATASET = args.dataset
+  experiment_name = args.experiment if not args.dev else 'test'
+
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -110,8 +111,6 @@ if __name__ == '__main__':
   else:
     ensure_clean_worktree()
     mode = 'online'  
-
-  experiment_name = 'RoFormer encoder SIN no noise, 1e-6 lr'
 
   wandb.init(project='Sinus approximation',
               notes='',
