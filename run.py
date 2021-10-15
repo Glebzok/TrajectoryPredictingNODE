@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd1': 1e-2, 'lambd2': 1e-2, 'n_iter': 10000, 'lr': 1e-2}
+  training_params = {'lambd1': 1e-1, 'lambd2': 1e-1, 'n_iter': 10000, 'lr': 1e-2}
   
   if DATASET == 'SIN':   
 
