@@ -2,7 +2,7 @@ import argparse
 
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"  
-os.environ["CUDA_VISIBLE_DEVICES"]="7"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 import torch
 import torch.nn as nn
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd1': 1e-2, 'lambd2': 1e-2, 'n_iter': 10000, 'lr': 1e-4}
+  training_params = {'lambd1': 1e-2, 'lambd2': 1e-2, 'n_iter': 10000, 'lr': 1e-6}
   
   if DATASET == 'SIN':   
 
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     ensure_clean_worktree()
     mode = 'online'  
 
-  experiment_name = 'RoFormer encoder SIN no noise, 1e-4 lr'
+  experiment_name = 'RoFormer encoder SIN no noise, 1e-6 lr'
 
   wandb.init(project='Sinus approximation',
               notes='',
