@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd1': 0.01, 'lambd2': 0.01, 'n_iter': 10000, 'lr': 1e-3}
+  training_params = {'lambd1': 1, 'lambd2': 1, 'n_iter': 10000, 'lr': 1e-2, 'scheduler_gamma': 0.9999}
   
   if DATASET == 'SIN':   
 
@@ -94,6 +94,7 @@ if __name__ == '__main__':
 
 
   optimizer = torch.optim.Adam(model.parameters(), lr=training_params['lr'])
+  scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=training_params['scheduler_gamma'])
 
   node_criterion = nn.MSELoss()
   rec_criterion = nn.MSELoss()
@@ -101,6 +102,7 @@ if __name__ == '__main__':
 
 
   config = {**training_params, **data_params, **model_params, 'opimizer': optimizer.__class__.__name__,
+            'scheduler': scheduler.__class__.__name__, 
             'node_criterion': node_criterion.__class__.__name__, 'rec_criterion': rec_criterion.__class__.__name__,
             'rhs_criterion': rhs_criterion.__class__.__name__}
 
@@ -120,4 +122,4 @@ if __name__ == '__main__':
               mode=mode)
   
   wandb.watch(model)
-  Trainer(model, optimizer, data_generator, node_criterion, rec_criterion, rhs_criterion).train(device, config)
+  Trainer(model, optimizer, scheduler, data_generator, node_criterion, rec_criterion, rhs_criterion).train(device, config)

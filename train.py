@@ -6,9 +6,10 @@ from torchdiffeq import odeint_adjoint as odeint
 
 
 class Trainer():
-  def __init__(self, model, optimizer, data_generator, node_criterion, rec_criterion, rhs_criterion):
+  def __init__(self, model, optimizer, scheduler, data_generator, node_criterion, rec_criterion, rhs_criterion):
     self.model = model
     self.optimizer = optimizer
+    self.scheduler = scheduler
     self.data_generator = data_generator
     self.node_criterion = node_criterion
     self.rec_criterion = rec_criterion
@@ -66,3 +67,4 @@ class Trainer():
         self.log_step(itr, batch_t, batch_y, rand_y, rand_y_noise, rand_y_rec, losses)
 
       self.optimizer.step()
+      self.scheduler.step()
