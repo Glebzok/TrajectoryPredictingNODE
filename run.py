@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-  training_params = {'lambd1': 1, 'lambd2': 1, 'n_iter': 10000, 'lr': 1e-5, 'scheduler_gamma': 0.999}
+  training_params = {'lambd1': 1, 'lambd2': 1, 'n_iter': 10000, 'lr': 1e-2, 'scheduler_gamma': 0.999}
   
   if DATASET == 'SIN':   
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
                   'signal_t_min': 0, 'signal_t_max': 20, 'signal_noise_amp': 0.,
                   'rand_p': 3, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0.}
 
-    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 64,
+    model_params = {'encoder_n_layers': 5, 'encoder_hidden_channels': 64,
                     'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
                     'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
 
