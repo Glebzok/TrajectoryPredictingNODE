@@ -44,6 +44,7 @@ if __name__ == '__main__':
 
   training_params = {'lambd1': 0.1, 'lambd2': 0.01, 'n_iter': 10000, 'lr': 1e-2, 'scheduler_gamma': 0.999}
   
+  
   if DATASET == 'SIN':   
 
     data_params = {'latent_dim': 5, 'signal_dim': 1,
