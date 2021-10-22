@@ -40,7 +40,6 @@ if __name__ == '__main__':
   DATASET = args.dataset
   experiment_name = args.experiment if not args.dev else 'test'
 
-
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
   training_params = {'lambd1': 0.01, 'lambd2': 0.01, 'n_iter': 10000, 'lr': 1e-2, 'scheduler_gamma': 0.999}
