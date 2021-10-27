@@ -80,7 +80,7 @@ if __name__ == '__main__':
                   'signal_t_min': 0, 'signal_t_max': 5, 'signal_noise_amp': 0,
                   'rand_p': 10, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0}
 
-    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 5,
+    model_params = {'encoder_n_layers': 3, 'encoder_hidden_channels': 64,
                     'decoder_n_layers': 3, 'decoder_hidden_dim': 5,
                     'rhs_n_layers': 3, 'rhs_hidden_dim': 5}
 
