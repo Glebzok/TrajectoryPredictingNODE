@@ -105,7 +105,7 @@ class RoFormerLatentSpaceEncoder(nn.Module):
 
     config = RoFormerConfig(vocab_size=1, embedding_size=signal_dim, hidden_size=dim_feedforward, num_hidden_layers=n_layers,
                             num_attention_heads=nhead, intermediate_size=dim_feedforward, hidden_act=activation, hidden_dropout_prob=dropout,
-                            attention_probs_dropout_prob=dropout, max_position_embeddings=1000)
+                            attention_probs_dropout_prob=dropout, max_position_embeddings=200)
     
     self.encoder = RoFormerEncoder(config)
     self.inl = nn.Linear(signal_dim, dim_feedforward)

@@ -75,7 +75,7 @@ if __name__ == '__main__':
   elif DATASET == 'LORENZ':
 
     data_params = {'latent_dim': 5, 'signal_dim': 3,
-                  'trajectory_len': 1000, 'batch_size': 64, 'signal_max_amp': 2,
+                  'trajectory_len': 200, 'batch_size': 256, 'signal_max_amp': 2,
                   'sigma': 10.0, 'rho':28.0, 'beta':8.0/3.0,
                   'signal_t_min': 0, 'signal_t_max': 5, 'signal_noise_amp': 0,
                   'rand_p': 10, 'rand_q': 0, 'rand_max_amp': 1, 'rand_noise_amp': 0}
