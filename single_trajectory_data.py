@@ -43,10 +43,10 @@ class Trajectory():
                                                        y_pred.numpy().T,
                                                        y_train_inference.numpy().T], axis=1),
                                        columns=['t'] \
-                                               + ['y_clean_y%i' % i for i in self.visible_dims] \
-                                               + ['y_noisy_y%i' % i for i in self.visible_dims] \
-                                               + ['y_shooting_y%i' % i for i in self.visible_dims] \
-                                               + ['y_inference_y%i' % i for i in self.visible_dims])
+                                               + ['y_true_clean_y%i' % i for i in self.visible_dims] \
+                                               + ['y_true_noisy_y%i' % i for i in self.visible_dims] \
+                                               + ['y_pred_shooting_y%i' % i for i in self.visible_dims] \
+                                               + ['y_pred_inference_y%i' % i for i in self.visible_dims])
 
         train_log_table = pd.melt(train_log_table, id_vars=['t'], value_name='y', var_name='description')
         train_log_table['stage'] = 'train'
@@ -56,19 +56,21 @@ class Trajectory():
                                                       y_test.numpy().T,
                                                       y_test_inference.numpy().T], axis=1),
                                       columns=['t'] \
-                                              + ['y_clean_y%i' % i for i in self.visible_dims] \
-                                              + ['y_noisy_y%i' % i for i in self.visible_dims] \
-                                              + ['y_inference_y%i' % i for i in self.visible_dims])
+                                              + ['y_true_clean_y%i' % i for i in self.visible_dims] \
+                                              + ['y_true_noisy_y%i' % i for i in self.visible_dims] \
+                                              + ['y_pred_inference_y%i' % i for i in self.visible_dims])
 
         test_log_table = pd.melt(test_log_table, id_vars=['t'], value_name='y', var_name='description')
         test_log_table['stage'] = 'test'
 
         log_table = pd.concat([train_log_table, test_log_table])
         log_table['type'] = log_table['description'].str.split('_').str[1]
-        log_table['variable'] = log_table['description'].str.split('_').str[2]
+        log_table['subtype'] = log_table['description'].str.split('_').str[2]
+        log_table['variable'] = log_table['description'].str.split('_').str[3]
 
         log_table = pd.pivot_table(log_table.drop(columns=['description']),
-                                   values='y',index=['t', 'stage', 'type'], columns=['variable']).reset_index()
+                                   values='y',index=['t', 'stage', 'type', 'subtype'],
+                                   columns=['variable']).reset_index()
 
         log_table = wandb.Table(dataframe=log_table)
 

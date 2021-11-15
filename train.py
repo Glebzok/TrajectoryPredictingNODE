@@ -120,19 +120,19 @@ class SingleTrajectoryTrainer:
         if self.lambda1 > 0:
             shooting_latent_loss = F.mse_loss(shooting_begin_values, shooting_end_values)
             loss += self.lambda1 * shooting_latent_loss
-            self.lambda1 += self.config['shooting_lambda_step']
+            self.lambda1 = min(1, self.lambda1 + self.config['shooting_lambda_step'])
             losses['Shooting latent loss'] = shooting_latent_loss.item()
         if self.lambda2 > 0:
             shooting_loss = F.mse_loss(self.shooting.decoder(shooting_begin_values),
                                        self.shooting.decoder(shooting_end_values))
             loss += self.lambda2 * shooting_loss
-            self.lambda2 += self.config['shooting_lambda_step']
+            self.lambda2 = min(1, self.lambda2 + self.config['shooting_lambda_step'])
             losses['Shooting loss'] = shooting_loss.item()
         if self.lambda3 > 0:
             shooting_rhs_loss = F.mse_loss(self.shooting.rhs(None, shooting_begin_values),
                                            self.shooting.rhs(None, shooting_end_values))
             loss += self.lambda3 * shooting_rhs_loss
-            self.lambda3 += self.config['shooting_lambda_step']
+            self.lambda3 = min(1, self.lambda3 + self.config['shooting_lambda_step'])
             losses['Shooting RHS loss'] = shooting_rhs_loss.item()
 
         return loss, losses
