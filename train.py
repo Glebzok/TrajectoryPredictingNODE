@@ -120,19 +120,19 @@ class SingleTrajectoryTrainer:
         if self.lambda1 > 0:
             shooting_latent_loss = F.mse_loss(shooting_begin_values, shooting_end_values)
             loss += self.lambda1 * shooting_latent_loss
-            self.lambda1 = min(1, self.lambda1 + self.config['shooting_lambda_step'])
+            self.lambda1 += self.config['shooting_lambda_step']
             losses['Shooting latent loss'] = shooting_latent_loss.item()
         if self.lambda2 > 0:
             shooting_loss = F.mse_loss(self.shooting.decoder(shooting_begin_values),
                                        self.shooting.decoder(shooting_end_values))
             loss += self.lambda2 * shooting_loss
-            self.lambda2 = min(1, self.lambda2 + self.config['shooting_lambda_step'])
+            self.lambda2 += self.config['shooting_lambda_step']
             losses['Shooting loss'] = shooting_loss.item()
         if self.lambda3 > 0:
             shooting_rhs_loss = F.mse_loss(self.shooting.rhs(None, shooting_begin_values),
                                            self.shooting.rhs(None, shooting_end_values))
             loss += self.lambda3 * shooting_rhs_loss
-            self.lambda3 = min(1, self.lambda3 + self.config['shooting_lambda_step'])
+            self.lambda3 += self.config['shooting_lambda_step']
             losses['Shooting RHS loss'] = shooting_rhs_loss.item()
 
         return loss, losses
@@ -147,7 +147,8 @@ class SingleTrajectoryTrainer:
 
         self.shooting = self.shooting.to(device)
         _ = self.shooting(t_train, y_train)
-        self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'])
+        self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=1e-5)
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9999)
 
         for itr in tqdm(range(self.config['n_iter'])):
 
@@ -165,3 +166,4 @@ class SingleTrajectoryTrainer:
                 self.log_step(itr, t_train, y_clean_train, y_train, y_pred, t_test, y_clean_test, y_test, step_losses)
 
             self.optimizer.step()
+            self.scheduler.step()
