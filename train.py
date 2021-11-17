@@ -147,8 +147,9 @@ class SingleTrajectoryTrainer:
 
         self.shooting = self.shooting.to(device)
         _ = self.shooting(t_train, y_train)
-        self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=1e-5)
-        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9999)
+        # self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=1e-5)
+        self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'])
+        # self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9999)
 
         for itr in tqdm(range(self.config['n_iter'])):
 
@@ -156,14 +157,20 @@ class SingleTrajectoryTrainer:
                 self.log_model()
                 self.shooting = self.shooting.to(device)
 
-            y_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)
-            loss, step_losses = self.calc_loss(y_train, y_pred, shooting_begin_values, shooting_end_values)
+            self.logged = False
 
-            self.optimizer.zero_grad()
-            loss.backward()
+            def closure():
+                y_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)
+                loss, step_losses = self.calc_loss(y_train, y_pred, shooting_begin_values, shooting_end_values)
 
-            if itr % self.config['logging_interval'] == 0:
-                self.log_step(itr, t_train, y_clean_train, y_train, y_pred, t_test, y_clean_test, y_test, step_losses)
+                self.optimizer.zero_grad()
+                loss.backward()
 
-            self.optimizer.step()
-            self.scheduler.step()
+                if (itr % self.config['logging_interval'] == 0) and (not self.logged):
+                    self.log_step(itr, t_train, y_clean_train, y_train, y_pred, t_test, y_clean_test, y_test, step_losses)
+                    self.logged = True
+
+                return loss
+
+            self.optimizer.step(closure)
+            # self.scheduler.step()

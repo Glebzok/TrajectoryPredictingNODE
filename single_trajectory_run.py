@@ -26,7 +26,7 @@ random.seed(seed)
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '0'
     DATASET = 'SPIRAL'
-    experiment_name = 'SPIRAL 40 shotting_vars, 2T, 1e-2 lr 20 hidden_dim, 10 latent, scheduler'
+    experiment_name = 'SPIRAL 40 shotting_vars, 2T, 1e-2 lr 20 hidden_dim, 10 latent, LBFGS'
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
