@@ -80,6 +80,7 @@ class SingleTrajectoryTrainer:
         self.lambda1 = config['lambda1']
         self.lambda2 = config['lambda2']
         self.lambda3 = config['lambda3']
+        self.l2_lambda = config['l2_lambda']
 
     def log_model(self):
         with torch.no_grad():
@@ -134,6 +135,12 @@ class SingleTrajectoryTrainer:
             loss += self.lambda3 * shooting_rhs_loss
             self.lambda3 += self.config['shooting_lambda_step']
             losses['Shooting RHS loss'] = shooting_rhs_loss.item()
+        if self.l2_lambda > 0:
+            l2_reg = torch.tensor(0., device=loss.device)
+            for param in self.shooting.parameters():
+                l2_reg += torch.norm(param)
+            loss += self.l2_lambda * l2_reg
+            losses['L2 loss'] = l2_reg.item()
 
         return loss, losses
 
