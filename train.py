@@ -147,17 +147,17 @@ class SingleTrajectoryTrainer:
 
         self.shooting = self.shooting.to(device)
         _ = self.shooting(t_train, y_train)
-        # self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=1e-5)
-        self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'])
-        # self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9999)
+        # self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'])
+        self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'], tolerance_change=1e-14)
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9999)
 
         for itr in tqdm(range(self.config['n_iter'])):
+
+            self.logged = False
 
             if itr == 0:
                 self.log_model()
                 self.shooting = self.shooting.to(device)
-
-            self.logged = False
 
             def closure():
                 y_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)
@@ -173,4 +173,4 @@ class SingleTrajectoryTrainer:
                 return loss
 
             self.optimizer.step(closure)
-            # self.scheduler.step()
+            self.scheduler.step()
