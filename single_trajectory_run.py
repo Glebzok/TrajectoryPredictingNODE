@@ -26,7 +26,7 @@ random.seed(seed)
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '0'
     DATASET = 'SIN'
-    experiment_name = 'SIN 20 shotting_vars, 2T, 1e-1 lr 1e-3 lambda_incr  LBFGS 0.9999 scheduler l2 reg (1e-4)'
+    experiment_name = 'SIN 10 shotting_vars, 2T, 1e-1 lr 1e-3 lambda_incr  LBFGS 0.9999 scheduler l2 reg (1e-4) 0.1 noise'
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -38,11 +38,11 @@ if __name__ == '__main__':
                        'logging_interval': 20, 'shooting_lambda_step': 1e-3}
 
     # trajectory = LorenzTrajectory(1, (0, 1, 2), T=10)
-    trajectory = SinTrajectory(noise_std=0., T=8*3.14, n_points=402)
+    trajectory = SinTrajectory(noise_std=0.1, T=8*3.14, n_points=402)
     # trajectory = SpiralTrajectory(noise_std=0., T=24, n_points=802)
 
     # shooting = SingleShooting(len(trajectory.visible_dims))
-    shooting = LatentMultipleShooting(signal_dim=1, latent_dim=15, n_shooting_vars=20)
+    shooting = LatentMultipleShooting(signal_dim=1, latent_dim=15, n_shooting_vars=10)
 
     config = {**training_params, **data_params}
 

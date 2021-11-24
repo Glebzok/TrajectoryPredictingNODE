@@ -116,7 +116,7 @@ class SingleTrajectoryTrainer:
 
     def calc_loss(self, y, pred_y, shooting_begin_values, shooting_end_values):
         rec_loss = F.mse_loss(y, pred_y)
-        loss = rec_loss
+        loss = rec_loss / 100.
         losses = {'Reconstruction loss': rec_loss.item()}
         if self.lambda1 > 0:
             shooting_latent_loss = F.mse_loss(shooting_begin_values, shooting_end_values)
