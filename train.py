@@ -116,7 +116,7 @@ class SingleTrajectoryTrainer:
 
     def calc_loss(self, y, pred_y, shooting_begin_values, shooting_end_values):
         rec_loss = F.mse_loss(y, pred_y)
-        loss = rec_loss / 100.
+        loss = rec_loss
         losses = {'Reconstruction loss': rec_loss.item()}
         if self.lambda1 > 0:
             shooting_latent_loss = F.mse_loss(shooting_begin_values, shooting_end_values)
@@ -138,7 +138,7 @@ class SingleTrajectoryTrainer:
         if self.l2_lambda > 0:
             l2_reg = torch.tensor(0., device=loss.device)
             for param in self.shooting.parameters():
-                l2_reg += torch.norm(param)
+                l2_reg += torch.linalg.norm(param, ord=2)
             loss += self.l2_lambda * l2_reg
             losses['L2 loss'] = l2_reg.item()
 

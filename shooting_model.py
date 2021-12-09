@@ -31,11 +31,11 @@ class LatentSingleShooting(nn.Module):
         super().__init__()
         self.signal_dim = signal_dim
         # self.rhs = SimpleRHS(system_dim=latent_dim)
-        self.rhs = FCRHS(system_dim=latent_dim, n_layers=5, hidden_dim=25)
+        self.rhs = FCRHS(system_dim=latent_dim, n_layers=10, hidden_dim=20)
         self.latent_dim = latent_dim
         self.z0 = nn.Parameter(torch.randn(1, latent_dim))
         # self.decoder = SimpleLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim)
-        self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, hidden_dim=25)
+        self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=10, hidden_dim=20)
 
     def forward(self, t, y):
         # y : (signal_dim, T)
@@ -146,6 +146,54 @@ class LatentDecoderMultipleShooting(LatentSingleShooting):
         # y : (signal_dim, T)
         z0 = self.encoder(y[None, :, :])[:, :, 0]  # (1, latent_dim)
         pred_z = odeint(self.rhs, z0, t).to(y.device)  # (T, 1, latent_dim)
+        pred_y = self.decoder(pred_z)  # (T, 1, signal_dim)
+        pred_y = pred_y[:, 0, :].permute(1, 0)  # (signal_dim, T)
+        return pred_y
+
+
+class LatentMultipleInterShooting(LatentSingleShooting):
+    def __init__(self, signal_dim, latent_dim, n_shooting_vars):
+        super().__init__(signal_dim=signal_dim, latent_dim=latent_dim)
+        self.n_shooting_vars = n_shooting_vars
+        self.shooting_vars = None
+
+    def forward(self, t, y):
+        # y : (signal_dim, T)
+        signal_dim, singal_length = y.shape
+
+        if self.shooting_vars is None:
+            self.shooting_vars = nn.Parameter(torch.rand(self.n_shooting_vars,
+                                                         self.latent_dim,
+                                                         device=y.device))  # (n_shooting_vars, latent_dim)
+            # print(self.shooting_vars)
+
+        subsignal_length = (singal_length - 1) // (self.n_shooting_vars - 1) + 1  # t
+        pred_z = odeint(self.rhs, self.shooting_vars,
+                        torch.cat([-t[1:subsignal_length].flip(dims=[0]), t[:subsignal_length]])).to(
+            y.device)  # ((t + t-1), n_shooting_vars, latent_dim)
+
+        pred_z_left = pred_z[:subsignal_length - 1, 1:, :]  # (t-1, n_shooting_vars-1, latent_dim)
+        pred_z_right = pred_z[subsignal_length - 1:-1, :-1, :]  # (t-1, n_shooting_vars-1, latent_dim)
+
+        last_point_z_left = pred_z[subsignal_length - 1:subsignal_length, -1, :]  # (1, latent_dim)
+        last_point_z_right = pred_z[-1:, -2, :]  # (1, latent_dim)
+
+        last_point_z = torch.stack([last_point_z_left, last_point_z_right], dim=0)  # (2, 1, latent_dim)
+        pred_z = torch.stack([pred_z_left, pred_z_right], dim=0)  # (2, t-1, n_shooting_vars-1, latent_dim)
+
+        pred_z = pred_z.permute(0, 2, 1, 3)  # (2, n_shooting_vars-1, t-1, latent_dim)
+        pred_z = pred_z.reshape(2, -1, self.latent_dim)  # (2, (n_shooting_vars-1) * (t-1), latent_dim)
+        pred_z = torch.cat([pred_z, last_point_z],
+                           dim=1)  # (2, (n_shooting_vars-1) * (t-1) + 1, latent_dim) = (2, T, latent_dim)
+
+        pred_y = self.decoder(pred_z)  # (2, T, signal_dim)
+        pred_y = pred_y.permute(2, 1, 0)  # (signal_dim, T, 2)
+
+        return pred_y.mean(dim=2), pred_z[0], pred_z[1]
+
+    def inference(self, t, y):
+        # y : (signal_dim, T)
+        pred_z = odeint(self.rhs, self.shooting_vars[1:2, :], t).to(y.device)  # (T, 1, latent_dim)
         pred_y = self.decoder(pred_z)  # (T, 1, signal_dim)
         pred_y = pred_y[:, 0, :].permute(1, 0)  # (signal_dim, T)
         return pred_y
