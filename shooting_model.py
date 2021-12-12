@@ -197,3 +197,49 @@ class LatentMultipleInterShooting(LatentSingleShooting):
         pred_y = self.decoder(pred_z)  # (T, 1, signal_dim)
         pred_y = pred_y[:, 0, :].permute(1, 0)  # (signal_dim, T)
         return pred_y
+
+
+class VariationalLatentMultipleShooting(LatentSingleShooting):
+    def __init__(self, signal_dim, latent_dim, n_shooting_vars, n_samples):
+        super().__init__(signal_dim=signal_dim, latent_dim=latent_dim)
+        self.n_shooting_vars = n_shooting_vars
+        self.shooting_vars_mu = None
+        self.shooting_vars_sigma = None
+        self.n_samples = n_samples
+
+    def forward(self, t, y):
+        # y : (signal_dim, T)
+        signal_dim, singal_length = y.shape
+
+        if self.shooting_vars_mu is None:
+            self.shooting_vars_mu = nn.Parameter(torch.rand(self.n_shooting_vars,
+                                                            self.latent_dim,
+                                                            device=y.device))  # (n_shooting_vars, latent_dim)
+            self.shooting_vars_sigma = nn.Parameter(torch.rand(self.n_shooting_vars,
+                                                               self.latent_dim,
+                                                               device=y.device,) / 1000)  # (n_shooting_vars, latent_dim)
+
+        z0 = self.shooting_vars_mu[None, ...] \
+             + torch.randn(self.n_samples, self.n_shooting_vars, self.latent_dim, device=y.device) \
+             * torch.exp(self.shooting_vars_sigma[None, ...]) # (n_samples, n_shooting_vars, latent_dim)
+        z0 = z0.view(-1, self.latent_dim) # (n_samples * n_shooting_vars, latent_dim)
+
+        subsignal_length = (singal_length - 1) // self.n_shooting_vars + 1
+        pred_z = odeint(self.rhs, z0, t[:subsignal_length]).to(y.device)  # (t, n_samples * n_shooting_vars, latent_dim)
+        shooting_end_values = pred_z[-1, :, :]  # (n_samples * n_shooting_vars, latent_dim)
+
+        pred_y = self.decoder(pred_z)  # (t, n_samples * n_shooting_vars, signal_dim)
+        pred_y = pred_y.view(-1, self.n_samples, self.n_shooting_vars, signal_dim) # (t, n_samples,  n_shooting_vars, signal_dim)
+
+        last_point = pred_y[-1:, :, -1, :]  # (1, n_samples, signal_dim)
+        pred_y = torch.cat([pred_y[:-1, :, :, :].permute(2, 0, 1, 3).reshape(-1, self.n_samples, signal_dim), last_point], dim=0)  # (T, n_samples, signal_dim)
+        pred_y = pred_y.permute(1, 2, 0) # (n_samples, signal_dim, T)
+        # pred_y = pred_y.mean(dim=0) # (signal_dim, T)
+        return pred_y, shooting_end_values.view(self.n_samples, self.n_shooting_vars, self.latent_dim)[:, :-1, :], z0.view(self.n_samples, self.n_shooting_vars, self.latent_dim)[:, 1:, :]
+
+    def inference(self, t, y):
+        # y : (signal_dim, T)
+        pred_z = odeint(self.rhs, self.shooting_vars_mu[:1, :], t).to(y.device)  # (T, 1, latent_dim)
+        pred_y = self.decoder(pred_z)  # (T, 1, signal_dim)
+        pred_y = pred_y[:, 0, :].permute(1, 0)  # (signal_dim, T)
+        return pred_y
