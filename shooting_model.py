@@ -217,7 +217,7 @@ class VariationalLatentMultipleShooting(LatentSingleShooting):
                                                             device=y.device))  # (n_shooting_vars, latent_dim)
             self.shooting_vars_sigma = nn.Parameter(torch.rand(self.n_shooting_vars,
                                                                self.latent_dim,
-                                                               device=y.device,) / 1000)  # (n_shooting_vars, latent_dim)
+                                                               device=y.device,))  # (n_shooting_vars, latent_dim)
 
         z0 = self.shooting_vars_mu[None, ...] \
              + torch.randn(self.n_samples, self.n_shooting_vars, self.latent_dim, device=y.device) \

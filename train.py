@@ -171,7 +171,7 @@ class SingleTrajectoryTrainer:
             self.logged = False
 
             if itr == 0:
-                self.log_model()
+                # self.log_model()
                 self.shooting = self.shooting.to(device)
 
             def closure():
