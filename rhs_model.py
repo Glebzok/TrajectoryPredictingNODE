@@ -6,9 +6,14 @@ class SimpleRHS(nn.Module):
         super().__init__()
         self.system_dim = system_dim
         self.linear = nn.Linear(in_features=system_dim, out_features=system_dim, bias=False)
+        # self.dropout1 = nn.Dropout(p=0.3)
+        # self.dropout2 = nn.Dropout(p=0.3)
 
     def forward(self, t, x):
-        return self.linear(x)
+        # x = self.dropout1(x)
+        x = self.linear(x)
+        # x = self.dropout2(x)
+        return x
 
 
 class FCRHS(nn.Module):

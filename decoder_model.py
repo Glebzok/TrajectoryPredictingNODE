@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class SimpleLatentSpaceDecoder(nn.Module):
@@ -25,6 +26,8 @@ class FCLatentSpaceDecoder(nn.Module):
                                         + [nn.Linear(hidden_dim, signal_dim)])
 
     def forward(self, x):
+        # p = 0.3
+        # x = F.dropout(x, p, self.training)
         for layer in self.layers[:-1]:
             x = layer(x)
             x = nn.Tanh()(x)

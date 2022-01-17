@@ -146,7 +146,8 @@ class SingleTrajectoryTrainer:
         if self.l2_lambda > 0:
             l2_reg = torch.tensor(0., device=loss.device)
             for param in self.shooting.parameters():
-                l2_reg += torch.linalg.norm(param, ord=2)
+                l2_reg += torch.linalg.norm(param)
+
             loss += self.l2_lambda * l2_reg
             losses['L2 loss'] = l2_reg.item()
 
@@ -162,7 +163,7 @@ class SingleTrajectoryTrainer:
 
         self.shooting = self.shooting.to(device)
         _ = self.shooting(t_train, y_train)
-        self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'])
+        self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=1e-7)
         # self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'], tolerance_change=1e-14)
         self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9999)
 
@@ -182,8 +183,16 @@ class SingleTrajectoryTrainer:
                 loss.backward()
 
                 if (itr % self.config['logging_interval'] == 0) and (not self.logged):
+                    self.shooting.eval()
                     self.log_step(itr, t_train, y_clean_train, y_train, y_pred, t_test, y_clean_test, y_test, step_losses)
+                    self.shooting.train()
                     self.logged = True
+
+                # if itr == 60:
+                #     print('l', shooting_begin_values.detach())
+                #     print('r', shooting_end_values.detach())
+                #     print('lrhs', self.shooting.rhs(None, shooting_begin_values).detach())
+                #     print('rrhs', self.shooting.rhs(None, shooting_end_values).detach())
 
                 return loss
 
