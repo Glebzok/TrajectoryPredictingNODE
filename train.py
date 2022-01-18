@@ -80,6 +80,7 @@ class SingleTrajectoryTrainer:
         self.lambda1 = config['lambda1']
         self.lambda2 = config['lambda2']
         self.lambda3 = config['lambda3']
+        self.lambda4 = config['lambda4']
         self.l2_lambda = config['l2_lambda']
 
     def log_model(self):
@@ -107,10 +108,6 @@ class SingleTrajectoryTrainer:
                                                                       t_train, y_clean_train, y_train, y_pred,
                                                                       t_test, y_clean_test, y_test)
             log_dict = dict(losses_dict, **{'step': itr, 'prediction_results': prediction_table})
-
-            if hasattr(self.shooting, 'shooting_vars_sigma'):
-                sigma_trace = (torch.exp(self.shooting.shooting_vars_sigma) ** 2).sum()
-                log_dict['sigma_trace'] = sigma_trace
 
             wandb.log(log_dict)
 
@@ -143,6 +140,14 @@ class SingleTrajectoryTrainer:
             loss += self.lambda3 * shooting_rhs_loss
             self.lambda3 += self.config['shooting_lambda_step']
             losses['Shooting RHS loss'] = shooting_rhs_loss.item()
+
+        if self.lambda4 > 0:
+            sigma_trace = (torch.exp(self.shooting.shooting_vars_sigma) ** 2).sum(dim=1) # shooting_vars
+            var_loss = ((sigma_trace - self.shooting.shooting_vars_sigma.shape[1]) ** 2).mean()
+
+            loss += self.lambda4 * var_loss
+            losses['sigma_trace'] = var_loss.item()
+
         if self.l2_lambda > 0:
             l2_reg = torch.tensor(0., device=loss.device)
             for param in self.shooting.parameters():
@@ -163,9 +168,9 @@ class SingleTrajectoryTrainer:
 
         self.shooting = self.shooting.to(device)
         _ = self.shooting(t_train, y_train)
-        self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=1e-7)
+        self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=1e-5)
         # self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'], tolerance_change=1e-14)
-        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9999)
+        # self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9999)
 
         for itr in tqdm(range(self.config['n_iter'])):
 
@@ -197,4 +202,4 @@ class SingleTrajectoryTrainer:
                 return loss
 
             self.optimizer.step(closure)
-            self.scheduler.step()
+            # self.scheduler.step()

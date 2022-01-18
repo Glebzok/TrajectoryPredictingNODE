@@ -27,8 +27,8 @@ class FCLatentSpaceDecoder(nn.Module):
 
     def forward(self, x):
         # p = 0.3
-        # x = F.dropout(x, p, self.training)
         for layer in self.layers[:-1]:
+            # x = F.dropout(x, p, self.training)
             x = layer(x)
             x = nn.Tanh()(x)
         x = self.layers[-1](x)
