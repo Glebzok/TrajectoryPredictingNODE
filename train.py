@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
+import pickle as pkl
 import wandb
 
 
@@ -111,6 +112,24 @@ class SingleTrajectoryTrainer:
 
             wandb.log(log_dict)
 
+    def save_model(self, itr, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test):
+        true = {'t_train': t_train.detach().cpu().numpy(),
+                'y_train_clean': y_clean_train.detach().cpu().numpy(),
+                'y_train': y_train.detach().cpu().numpy(),
+                't_test': t_test.detach().cpu().numpy(),
+                'y_test_clean': y_clean_test.detach().cpu().numpy(),
+                'y_test': y_test.detach().cpu().numpy()}
+        pred = {'y_pred': y_pred.detach().cpu().numpy(),
+                'z_pred': z_pred.detach().cpu().numpy()}
+
+        with open(f'./model/{itr}_true.pkl', 'wb') as f:
+            pkl.dump(true, f)
+
+        with open(f'./model/{itr}_pred.pkl', 'wb') as f:
+            pkl.dump(pred, f)
+
+        torch.save(self.shooting, f'./model/{itr}_model.pt')
+
     @staticmethod
     def train_test_split(t, y_clean, y, T_train):
         N = (t <= T_train).sum()
@@ -129,8 +148,8 @@ class SingleTrajectoryTrainer:
             self.lambda1 += self.config['shooting_lambda_step']
             losses['Shooting latent loss'] = shooting_latent_loss.item()
         if self.lambda2 > 0:
-            shooting_loss = F.mse_loss(self.shooting.decoder(shooting_begin_values),
-                                       self.shooting.decoder(shooting_end_values))
+            shooting_loss = F.mse_loss(self.shooting.decoder(shooting_begin_values[:, None, :]),
+                                       self.shooting.decoder(shooting_end_values[:, None, :]))
             loss += self.lambda2 * shooting_loss
             self.lambda2 += self.config['shooting_lambda_step']
             losses['Shooting loss'] = shooting_loss.item()
@@ -142,7 +161,7 @@ class SingleTrajectoryTrainer:
             losses['Shooting RHS loss'] = shooting_rhs_loss.item()
 
         if self.lambda4 > 0:
-            sigma_trace = (torch.exp(self.shooting.shooting_vars_sigma) ** 2).sum(dim=1) # shooting_vars
+            sigma_trace = (torch.exp(self.shooting.shooting_vars_sigma) ** 2).sum(dim=1)  # shooting_vars
             var_loss = ((sigma_trace - self.shooting.shooting_vars_sigma.shape[1]) ** 2).mean()
 
             loss += self.lambda4 * var_loss
@@ -163,14 +182,14 @@ class SingleTrajectoryTrainer:
         t_train, y_clean_train, y_train, t_test, y_clean_test, y_test = \
             self.train_test_split(t=t, y_clean=y_clean, y=y, T_train=self.config['T_train'])
         t_train, y_clean_train, y_train, t_test, y_clean_test, y_test = \
-            t_train.to(device), y_clean_train.to(device), y_train.to(device),\
+            t_train.to(device), y_clean_train.to(device), y_train.to(device), \
             t_test.to(device), y_clean_test.to(device), y_test.to(device)
 
         self.shooting = self.shooting.to(device)
         _ = self.shooting(t_train, y_train)
         self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=1e-3)
-        # self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'], tolerance_change=1e-14)
-        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.999)
+        # self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'], tolerance_change=1e-30)
+        # self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.99)
 
         for itr in tqdm(range(self.config['n_iter'])):
 
@@ -181,7 +200,7 @@ class SingleTrajectoryTrainer:
                 self.shooting = self.shooting.to(device)
 
             def closure():
-                y_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)
+                y_pred, z_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)
                 loss, step_losses = self.calc_loss(y_train, y_pred, shooting_begin_values, shooting_end_values)
 
                 self.optimizer.zero_grad()
@@ -189,7 +208,9 @@ class SingleTrajectoryTrainer:
 
                 if (itr % self.config['logging_interval'] == 0) and (not self.logged):
                     self.shooting.eval()
-                    self.log_step(itr, t_train, y_clean_train, y_train, y_pred, t_test, y_clean_test, y_test, step_losses)
+                    self.log_step(itr, t_train, y_clean_train, y_train, y_pred, t_test, y_clean_test, y_test,
+                                  step_losses)
+                    self.save_model(itr, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test)
                     self.shooting.train()
                     self.logged = True
 
@@ -202,4 +223,4 @@ class SingleTrajectoryTrainer:
                 return loss
 
             self.optimizer.step(closure)
-            self.scheduler.step()
+            # self.scheduler.step()

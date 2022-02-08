@@ -3,7 +3,7 @@ import torch.nn as nn
 from torchdiffeq import odeint_adjoint as odeint
 
 from rhs_model import SimpleRHS, FCRHS
-from decoder_model import SimpleLatentSpaceDecoder, FCLatentSpaceDecoder
+from decoder_model import SimpleLatentSpaceDecoder, FCLatentSpaceDecoder, AlgebraicLatentSpaceDecoder
 from encoder_model import SimpleLatentSpaceEncoder
 
 
@@ -17,7 +17,7 @@ class SingleShooting(nn.Module):
         # y : (signal_dim, T)
         pred_y = odeint(self.rhs, y[None, :, 0], t).to(y.device)  # (T, 1, signal_dim)
         pred_y = pred_y[:, 0, :].permute(1, 0)  # (signal_dim, T)
-        return pred_y, None, None
+        return pred_y, None, None, None
 
     def inference(self, t, y):
         # y : (signal_dim, T)
@@ -35,14 +35,15 @@ class LatentSingleShooting(nn.Module):
         self.latent_dim = latent_dim
         self.z0 = nn.Parameter(torch.randn(1, latent_dim))
         # self.decoder = SimpleLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim)
-        self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=2, hidden_dim=50)
+        self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, hidden_dim=20)
+        self.decoder = AlgebraicLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=2, hidden_dim=20)
 
     def forward(self, t, y):
         # y : (signal_dim, T)
         pred_z = odeint(self.rhs, self.z0, t).to(y.device)  # (T, 1, latent_dim)
         pred_y = self.decoder(pred_z)  # (T, 1, signal_dim)
         pred_y = pred_y[:, 0, :].permute(1, 0)  # (signal_dim, T)
-        return pred_y, None, None
+        return pred_y, pred_z, None, None
 
     def inference(self, t, y):
         # y : (signal_dim, T)
@@ -72,7 +73,7 @@ class MultipleShooting(SingleShooting):
         shooting_end_values = pred_y[-1, :, :]  # (n_shooting_vars, signal_dim)
         pred_y = pred_y.permute(1, 0, 2).reshape(-1, signal_dim)  # (T, signal_dim)
         pred_y = pred_y.permute(1, 0)  # (signal_dim, T)
-        return pred_y, shooting_end_values[:-1, :], self.shooting_vars[1:, :]
+        return pred_y, None, shooting_end_values[:-1, :], self.shooting_vars[1:, :]
 
     def inference(self, t, y):
         # y : (signal_dim, T)
@@ -104,7 +105,7 @@ class LatentMultipleShooting(LatentSingleShooting):
         last_point = pred_y[-1:, -1, :]  # (1, signal_dim)
         pred_y = torch.cat([pred_y[:-1, :, :].permute(1, 0, 2).reshape(-1, signal_dim), last_point], dim=0)  # (T, signal_dim)
         pred_y = pred_y.permute(1, 0)  # (signal_dim, T)
-        return pred_y, shooting_end_values[:-1, :], self.shooting_vars[1:, :]
+        return pred_y, pred_z, shooting_end_values[:-1, :], self.shooting_vars[1:, :]
 
     def inference(self, t, y):
         # y : (signal_dim, T)
@@ -140,7 +141,7 @@ class LatentDecoderMultipleShooting(LatentSingleShooting):
         pred_y = torch.cat([pred_y[:-1, :, :].permute(1, 0, 2).reshape(-1, signal_dim), last_point],
                            dim=0)  # (T, signal_dim)
         pred_y = pred_y.permute(1, 0)  # (signal_dim, T)
-        return pred_y, shooting_end_values[:-1, :], z0[1:, :]
+        return pred_y, pred_z, shooting_end_values[:-1, :], z0[1:, :]
 
     def inference(self, t, y):
         # y : (signal_dim, T)
@@ -189,7 +190,7 @@ class LatentMultipleInterShooting(LatentSingleShooting):
         pred_y = self.decoder(pred_z)  # (2, T, signal_dim)
         pred_y = pred_y.permute(2, 1, 0)  # (signal_dim, T, 2)
 
-        return pred_y.mean(dim=2), pred_z[0], pred_z[1]
+        return pred_y.mean(dim=2), pred_z, pred_z[0], pred_z[1]
 
     def inference(self, t, y):
         # y : (signal_dim, T)
@@ -235,7 +236,7 @@ class VariationalLatentMultipleShooting(LatentSingleShooting):
         pred_y = torch.cat([pred_y[:-1, :, :, :].permute(2, 0, 1, 3).reshape(-1, self.n_samples, signal_dim), last_point], dim=0)  # (T, n_samples, signal_dim)
         pred_y = pred_y.permute(1, 2, 0) # (n_samples, signal_dim, T)
         # pred_y = pred_y.mean(dim=0) # (signal_dim, T)
-        return pred_y, shooting_end_values.view(self.n_samples, self.n_shooting_vars, self.latent_dim)[:, :-1, :], z0.view(self.n_samples, self.n_shooting_vars, self.latent_dim)[:, 1:, :]
+        return pred_y, pred_z, shooting_end_values.view(self.n_samples, self.n_shooting_vars, self.latent_dim)[:, :-1, :], z0.view(self.n_samples, self.n_shooting_vars, self.latent_dim)[:, 1:, :]
 
     def inference(self, t, y):
         # y : (signal_dim, T)
