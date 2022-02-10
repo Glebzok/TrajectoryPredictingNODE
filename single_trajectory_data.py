@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from math import pi
 
+import pickle as pkl
+
 import wandb
 
 
@@ -148,3 +150,19 @@ class LorenzTrajectory(Trajectory):
         y = self.generate_visible_trajectory(y_clean)
 
         return t, y_clean, y
+
+
+class CascadedTanksTrajectory(Trajectory):
+    def __init__(self):
+        super().__init__(t0=0, T=12, n_points=802, noise_std=0, signal_amp=10)
+
+        self.signal_dim = 2
+        self.visible_dims = list([0, 1])
+
+    def __call__(self):
+        with open('./cascaded_tanks.pkl', 'rb') as f:
+            data = pkl.load(f)
+
+        y, t = torch.tensor(data['y'], dtype=torch.float32), torch.tensor(data['t'], dtype=torch.float32)
+
+        return t, y, y

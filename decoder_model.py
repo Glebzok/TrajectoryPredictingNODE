@@ -65,22 +65,18 @@ class Power(nn.Module):
 
 
 class Algebraic(nn.Module):
-    def __init__(self, in_features, n_powers):
+    def __init__(self, in_features):
         super().__init__()
         self.inner_product = InnerProduct(in_features=in_features)
         inner_product_out_features = in_features * (in_features + 1) // 2
 
-        self.power = Power(in_features=in_features, n_powers=n_powers)
-        power_out_features = in_features * n_powers
-
-        self.linear = nn.Linear(in_features=in_features + inner_product_out_features + power_out_features,
+        self.linear = nn.Linear(in_features=in_features + inner_product_out_features,
                                 out_features=in_features)
 
     def forward(self, x):
         x1 = self.inner_product(x)
-        x2 = self.power(x)
 
-        x = x + self.linear(torch.cat([x, x1, x2], dim=1))
+        x = x + self.linear(torch.cat([x, x1], dim=1))
         return x
 
 
@@ -88,7 +84,7 @@ class AlgebraicLatentSpaceDecoder(nn.Module):
     def __init__(self, latent_dim, signal_dim, n_layers, hidden_dim):
         super().__init__()
         self.l1 = nn.Linear(in_features=latent_dim, out_features=hidden_dim)
-        self.alg = nn.ModuleList([Algebraic(in_features=hidden_dim, n_powers=5) for _ in range(n_layers)])
+        self.alg = nn.ModuleList([Algebraic(in_features=hidden_dim) for _ in range(n_layers)])
         self.l2 = nn.Linear(in_features=hidden_dim, out_features=signal_dim)
 
     def forward(self, x):
@@ -98,7 +94,7 @@ class AlgebraicLatentSpaceDecoder(nn.Module):
 
         for l in self.alg:
             x = l(x)
-            x = F.relu(x)
+            x = torch.tanh(x)
 
         x = self.l2(x)
         x = x.view(bs, n_points, -1)

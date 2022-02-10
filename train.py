@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import pickle as pkl
 import wandb
+import os
 
 
 class Trainer():
@@ -72,11 +73,12 @@ class Trainer():
 
 
 class SingleTrajectoryTrainer:
-    def __init__(self, trajectory, shooting, config):
+    def __init__(self, trajectory, shooting, config, experiment_name):
         self.trajectory = trajectory
         self.shooting = shooting
         self.optimizer = None
         self.config = config
+        self.experiment_name = experiment_name
 
         self.lambda1 = config['lambda1']
         self.lambda2 = config['lambda2']
@@ -122,13 +124,13 @@ class SingleTrajectoryTrainer:
         pred = {'y_pred': y_pred.detach().cpu().numpy(),
                 'z_pred': z_pred.detach().cpu().numpy()}
 
-        with open(f'./model/{itr}_true.pkl', 'wb') as f:
+        with open(f'./model/{self.experiment_name}/{itr}_true.pkl', 'wb') as f:
             pkl.dump(true, f)
 
-        with open(f'./model/{itr}_pred.pkl', 'wb') as f:
+        with open(f'./model/{self.experiment_name}/{itr}_pred.pkl', 'wb') as f:
             pkl.dump(pred, f)
 
-        torch.save(self.shooting, f'./model/{itr}_model.pt')
+        torch.save(self.shooting, f'./model/{self.experiment_name}/{itr}_model.pt')
 
     @staticmethod
     def train_test_split(t, y_clean, y, T_train):
@@ -198,6 +200,8 @@ class SingleTrajectoryTrainer:
             if itr == 0:
                 # self.log_model()
                 self.shooting = self.shooting.to(device)
+                os.mkdir(f'./model/{self.experiment_name}')
+
 
             def closure():
                 y_pred, z_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)

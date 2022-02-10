@@ -35,8 +35,8 @@ class LatentSingleShooting(nn.Module):
         self.latent_dim = latent_dim
         self.z0 = nn.Parameter(torch.randn(1, latent_dim))
         # self.decoder = SimpleLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim)
-        self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, hidden_dim=20)
-        self.decoder = AlgebraicLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=2, hidden_dim=20)
+        # self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, hidden_dim=20)
+        self.decoder = AlgebraicLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=10, hidden_dim=40)
 
     def forward(self, t, y):
         # y : (signal_dim, T)
