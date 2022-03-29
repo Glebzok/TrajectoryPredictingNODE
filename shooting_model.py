@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
-from torchdiffeq import odeint_adjoint as odeint
+# from torchdiffeq import odeint_adjoint as odeint
+from linear_ode_int import matrix_exp_odeint as odeint
 
 from rhs_model import SimpleRHS, FCRHS
-from decoder_model import SimpleLatentSpaceDecoder, FCLatentSpaceDecoder, AlgebraicLatentSpaceDecoder
+from decoder_model import SimpleLatentSpaceDecoder, FCLatentSpaceDecoder, AlgebraicLatentSpaceDecoder, TransformerLatentSpaceDecoder, PermformerLatentSpaceDecoder
 from encoder_model import SimpleLatentSpaceEncoder
 
 
@@ -27,16 +28,20 @@ class SingleShooting(nn.Module):
 
 
 class LatentSingleShooting(nn.Module):
-    def __init__(self, signal_dim, latent_dim):
+    def __init__(self, signal_dim, latent_dim, T):
         super().__init__()
         self.signal_dim = signal_dim
-        self.rhs = SimpleRHS(system_dim=latent_dim)
+        self.rhs = SimpleRHS(system_dim=latent_dim, T=T, use_hippo_init=False)
         # self.rhs = FCRHS(system_dim=latent_dim, n_layers=5, hidden_dim=50)
         self.latent_dim = latent_dim
         self.z0 = nn.Parameter(torch.randn(1, latent_dim))
         # self.decoder = SimpleLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim)
-        # self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, hidden_dim=20)
-        self.decoder = AlgebraicLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=10, hidden_dim=40)
+        # self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, hidden_dim=40)
+        # self.decoder = AlgebraicLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=10, hidden_dim=40)
+        self.decoder = TransformerLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, nhead=8,
+                                                     dim_feedforward=256, dropout=0., activation='relu')
+        # self.decoder = PermformerLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, nhead=8,
+        #                                             dim_feedforward=200, dropout=0.3, activation='relu')
 
     def forward(self, t, y):
         # y : (signal_dim, T)
@@ -50,7 +55,8 @@ class LatentSingleShooting(nn.Module):
         pred_z = odeint(self.rhs, self.z0, t).to(y.device)  # (T, 1, latent_dim)
         pred_y = self.decoder(pred_z)  # (T, 1, signal_dim)
         pred_y = pred_y[:, 0, :].permute(1, 0)  # (signal_dim, T)
-        return pred_y
+        pred_z = pred_z[:, 0, :].permute(1, 0) # (latent_dim, T)
+        return pred_y, pred_z
 
 
 class MultipleShooting(SingleShooting):
@@ -83,8 +89,8 @@ class MultipleShooting(SingleShooting):
 
 
 class LatentMultipleShooting(LatentSingleShooting):
-    def __init__(self, signal_dim, latent_dim, n_shooting_vars):
-        super().__init__(signal_dim=signal_dim, latent_dim=latent_dim)
+    def __init__(self, signal_dim, latent_dim, T, n_shooting_vars):
+        super().__init__(signal_dim=signal_dim, latent_dim=latent_dim, T=T)
         self.n_shooting_vars = n_shooting_vars
         self.shooting_vars = None
 
@@ -112,7 +118,8 @@ class LatentMultipleShooting(LatentSingleShooting):
         pred_z = odeint(self.rhs, self.shooting_vars[:1, :], t).to(y.device)  # (T, 1, latent_dim)
         pred_y = self.decoder(pred_z)  # (T, 1, signal_dim)
         pred_y = pred_y[:, 0, :].permute(1, 0)  # (signal_dim, T)
-        return pred_y
+        pred_z = pred_z[:, 0, :].permute(1, 0)  # (latent_dim, T)
+        return pred_y, pred_z
 
 
 class LatentDecoderMultipleShooting(LatentSingleShooting):

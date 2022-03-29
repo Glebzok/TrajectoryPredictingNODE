@@ -1,13 +1,41 @@
 import torch.nn as nn
+import torch
+
+
+def get_hippo_matrix(n):
+  row = ((2 * torch.arange(1, n+1, 1) + 1) ** 0.5)
+  diagonal = -torch.diag(torch.arange(1, n+1, 1))
+  hippo_matrix = -torch.tril(row.view(-1, 1) @ row.view(1, -1), diagonal=-1)
+
+  return (hippo_matrix + diagonal).T
+
+
+class SpectralShift(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, X):
+        max_real_eigv_part = torch.linalg.eigvals(X).real.max().detach()
+        return X - max_real_eigv_part * torch.eye(X.shape[0], device=X.device)
 
 
 class SimpleRHS(nn.Module):
-    def __init__(self, system_dim):
+    def __init__(self, system_dim, T=1, use_hippo_init=False):
         super().__init__()
         self.system_dim = system_dim
+        # self.linear = nn.utils.parametrizations.spectral_norm(nn.Linear(in_features=system_dim, out_features=system_dim, bias=False))
         self.linear = nn.Linear(in_features=system_dim, out_features=system_dim, bias=False)
+        # nn.utils.parametrize.register_parametrization(self.linear, 'weight', SpectralShift())
+
         # self.dropout1 = nn.Dropout(p=0.3)
         # self.dropout2 = nn.Dropout(p=0.3)
+
+        if use_hippo_init:
+            self.linear.parametrizations.weight.original.data = get_hippo_matrix(system_dim)
+
+        # self.linear.weight.data /= T
+        self.linear.weight.data *= 10
+        # self.linear.parametrizations.weight.original.data *= 10
 
     def forward(self, t, x):
         # x = self.dropout1(x)

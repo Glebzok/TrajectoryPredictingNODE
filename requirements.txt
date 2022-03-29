@@ -3,5 +3,5 @@ numpy
 pandas
 torch
 torchdiffeq
-transformers
+# transformers
 wandb

@@ -4,7 +4,7 @@ from torchdiffeq import odeint_adjoint as odeint
 
 import numpy as np
 import pandas as pd
-from math import pi
+from math import pi, log, e
 
 import pickle as pkl
 
@@ -30,14 +30,18 @@ class Trajectory():
     def __call__(self):
         raise NotImplementedError()
 
-    def log_prediction_results(self, model, t_train, y_clean_train, y_train, y_pred, t_test, y_clean_test, y_test):
-        y_inference = model.inference(torch.cat([t_train, t_test]), y_train)  # (signal_dim, T)
+    def log_prediction_results(self, model, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test):
+        y_inference, z_inference = model.inference(torch.cat([t_train, t_test]), y_train)  # (signal_dim, T), (latent_dim, T)
         y_train_inference = y_inference[:, :t_train.shape[0]]
         y_test_inference = y_inference[:, t_train.shape[0]:]
+        z_train_inference = z_inference[:, :t_train.shape[0]]
+        z_test_inference = z_inference[:, t_train.shape[0]:]
 
-        t_train, y_clean_train, y_train, y_pred, y_train_inference, t_test, y_clean_test, y_test, y_test_inference = \
-            t_train.cpu(), y_clean_train.cpu(), y_train.cpu(), y_pred.detach().cpu(), y_train_inference.detach().cpu(), \
-            t_test.cpu(), y_clean_test.cpu(), y_test.cpu(), y_test_inference.detach().cpu()
+        t_train, y_clean_train, y_train, z_pred, y_pred, y_train_inference, t_test, y_clean_test, y_test, \
+            y_test_inference, z_train_inference, z_test_inference = \
+                t_train.cpu(), y_clean_train.cpu(), y_train.cpu(), z_pred.detach().cpu(), y_pred.detach().cpu(), \
+                y_train_inference.detach().cpu(), t_test.cpu(), y_clean_test.cpu(), y_test.cpu(),\
+                y_test_inference.detach().cpu(), z_train_inference.detach().cpu(), z_test_inference.detach().cpu()
 
         train_log_table = pd.DataFrame(np.concatenate([t_train.numpy().reshape(-1, 1),
                                                        y_clean_train.numpy().T,
@@ -76,7 +80,21 @@ class Trajectory():
 
         log_table = wandb.Table(dataframe=log_table)
 
-        return log_table
+        signals = \
+            {'true': {'t_train': t_train.numpy(),
+                      't_test': t_test.numpy(),
+                      'y_clean_train': y_clean_train.numpy(),
+                      'y_train': y_train.numpy(),
+                      'y_clean_test': y_clean_test.numpy(),
+                      'y_test': y_test.numpy()},
+             'pred': {'y_train_pred': y_pred.numpy(),
+                      'z_train_pred': z_pred.numpy(),
+                      'y_train_inference': y_train_inference.numpy(),
+                      'y_test_inference': y_test_inference.numpy(),
+                      'z_train_inference': z_train_inference.numpy(),
+                      'z_test_inference': z_test_inference.numpy()}}
+
+        return log_table, signals
 
 
 class SinTrajectory(Trajectory):
@@ -113,10 +131,13 @@ class SpiralTrajectory(Trajectory):
         self.rhs = self.RHS()
 
     def __call__(self):
-        t = torch.linspace(self.t0, self.T, self.n_points)
+        # t = torch.linspace(self.t0, self.T, self.n_points)
+        t = torch.logspace(0, log(self.T + 1), self.n_points, base=e) - 1
         y0 = torch.tensor([1., 0.]).view(1, -1) * self.signal_amp
         y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0) # (#visible_dims, T)
         y = self.generate_visible_trajectory(y_clean)
+
+        t = torch.log(t + 1) / log(self.T + 1) * self.T
 
         return t, y_clean, y
 

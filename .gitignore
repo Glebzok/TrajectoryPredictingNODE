@@ -133,3 +133,5 @@ dmypy.json
 
 #logs
 wandb/
+files/
+.ipynb_checkpoints/

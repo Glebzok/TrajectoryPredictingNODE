@@ -85,6 +85,7 @@ class SingleTrajectoryTrainer:
         self.lambda3 = config['lambda3']
         self.lambda4 = config['lambda4']
         self.l2_lambda = config['l2_lambda']
+        self.log_norm_lambda = config['log_norm_lambda']
 
     def log_model(self):
         with torch.no_grad():
@@ -103,34 +104,31 @@ class SingleTrajectoryTrainer:
                 torch.onnx.export(self.shooting.decoder.to('cpu'), x, 'decoder.onnx')
                 wandb.save('decoder.onnx')
 
-    def log_step(self, itr, t_train, y_clean_train, y_train, y_pred, t_test, y_clean_test, y_test, losses_dict):
+    def log_step(self, itr, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test, losses_dict):
         with torch.no_grad():
             if len(y_pred.shape) == 3:
                 y_pred = y_pred[0]
-            prediction_table = self.trajectory.log_prediction_results(self.shooting,
-                                                                      t_train, y_clean_train, y_train, y_pred,
-                                                                      t_test, y_clean_test, y_test)
+            prediction_table, signals_dict = \
+                self.trajectory.log_prediction_results(self.shooting,
+                                                       t_train, y_clean_train, y_train, z_pred, y_pred,
+                                                       t_test, y_clean_test, y_test)
             log_dict = dict(losses_dict, **{'step': itr, 'prediction_results': prediction_table})
 
             wandb.log(log_dict)
 
-    def save_model(self, itr, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test):
-        true = {'t_train': t_train.detach().cpu().numpy(),
-                'y_train_clean': y_clean_train.detach().cpu().numpy(),
-                'y_train': y_train.detach().cpu().numpy(),
-                't_test': t_test.detach().cpu().numpy(),
-                'y_test_clean': y_clean_test.detach().cpu().numpy(),
-                'y_test': y_test.detach().cpu().numpy()}
-        pred = {'y_pred': y_pred.detach().cpu().numpy(),
-                'z_pred': z_pred.detach().cpu().numpy()}
+        return signals_dict
+
+    def save_model(self, itr, signals_dict):
 
         with open(f'./model/{self.experiment_name}/{itr}_true.pkl', 'wb') as f:
-            pkl.dump(true, f)
+            pkl.dump(signals_dict['true'], f)
 
         with open(f'./model/{self.experiment_name}/{itr}_pred.pkl', 'wb') as f:
-            pkl.dump(pred, f)
+            pkl.dump(signals_dict['pred'], f)
 
-        torch.save(self.shooting, f'./model/{self.experiment_name}/{itr}_model.pt')
+        # torch.save(self.shooting, f'./model/{self.experiment_name}/{itr}_model.pt')
+        with open(f'./model/{self.experiment_name}/{itr}_model.pkl', 'wb') as f:
+            pkl.dump(self.shooting.rhs.linear.weight, f)
 
     @staticmethod
     def train_test_split(t, y_clean, y, T_train):
@@ -138,6 +136,7 @@ class SingleTrajectoryTrainer:
         t_train, t_test = t[:N], t[N:]
         y_clean_train, y_clean_test = y_clean[:, :N], y_clean[:, N:]
         y_train, y_test = y[:, :N], y[:, N:]
+        # print(t_train.shape, y_train.shape, t_test.shape, y_test.shape)
         return t_train, y_clean_train, y_train, t_test, y_clean_test, y_test
 
     def calc_loss(self, y, pred_y, shooting_begin_values, shooting_end_values):
@@ -177,6 +176,13 @@ class SingleTrajectoryTrainer:
             loss += self.l2_lambda * l2_reg
             losses['L2 loss'] = l2_reg.item()
 
+        if self.log_norm_lambda > 0:
+            log_norm = max(torch.linalg.eigvalsh(self.shooting.rhs.linear.weight + self.shooting.rhs.linear.weight.T)[-1],
+                           torch.tensor(0., requires_grad=True, device=y.device))
+
+            loss += self.log_norm_lambda * log_norm
+            losses['log_norm'] = log_norm.item()
+
         return loss, losses
 
     def train(self, device):
@@ -200,8 +206,8 @@ class SingleTrajectoryTrainer:
             if itr == 0:
                 # self.log_model()
                 self.shooting = self.shooting.to(device)
-                os.mkdir(f'./model/{self.experiment_name}')
-
+                if not os.path.exists(f'./model/{self.experiment_name}'):
+                    os.mkdir(f'./model/{self.experiment_name}')
 
             def closure():
                 y_pred, z_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)
@@ -212,9 +218,13 @@ class SingleTrajectoryTrainer:
 
                 if (itr % self.config['logging_interval'] == 0) and (not self.logged):
                     self.shooting.eval()
-                    self.log_step(itr, t_train, y_clean_train, y_train, y_pred, t_test, y_clean_test, y_test,
-                                  step_losses)
-                    self.save_model(itr, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test)
+                    signals_dict = \
+                        self.log_step(itr, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test,
+                                      step_losses)
+
+                    if itr % (100 * self.config['logging_interval']) == 0:
+                        self.save_model(itr, signals_dict)
+
                     self.shooting.train()
                     self.logged = True
 

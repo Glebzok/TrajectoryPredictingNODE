@@ -1,8 +1,8 @@
 import torch.nn as nn
 from model_parts import DoubleConv, Up, Down, OutConv, \
     PositionalEncoding
-from transformers import RoFormerConfig
-from transformers.models.roformer.modeling_roformer import RoFormerEncoder
+# from transformers import RoFormerConfig
+# from transformers.models.roformer.modeling_roformer import RoFormerEncoder
 
 
 class SimpleLatentSpaceEncoder(nn.Module):
@@ -113,23 +113,22 @@ class TransformerLatentSpaceEncoder(nn.Module):
 
         return x
 
-
-class RoFormerLatentSpaceEncoder(nn.Module):
-    def __init__(self, latent_dim, signal_dim, n_layers, nhead, dim_feedforward, dropout, activation):
-        super().__init__()
-
-        config = RoFormerConfig(vocab_size=1, embedding_size=signal_dim, hidden_size=dim_feedforward,
-                                num_hidden_layers=n_layers,
-                                num_attention_heads=nhead, intermediate_size=dim_feedforward, hidden_act=activation,
-                                hidden_dropout_prob=dropout,
-                                attention_probs_dropout_prob=dropout, max_position_embeddings=200)
-
-        self.encoder = RoFormerEncoder(config)
-        self.inl = nn.Linear(signal_dim, dim_feedforward)
-        self.outl = nn.Linear(dim_feedforward, latent_dim)
-
-    def forward(self, x):
-        x = self.inl(x.permute(0, 2, 1))
-        x = self.encoder(x)[0]
-        x = self.outl(x).permute(0, 2, 1)
-        return x
+# class RoFormerLatentSpaceEncoder(nn.Module):
+#     def __init__(self, latent_dim, signal_dim, n_layers, nhead, dim_feedforward, dropout, activation):
+#         super().__init__()
+#
+#         config = RoFormerConfig(vocab_size=1, embedding_size=signal_dim, hidden_size=dim_feedforward,
+#                                 num_hidden_layers=n_layers,
+#                                 num_attention_heads=nhead, intermediate_size=dim_feedforward, hidden_act=activation,
+#                                 hidden_dropout_prob=dropout,
+#                                 attention_probs_dropout_prob=dropout, max_position_embeddings=200)
+#
+#         self.encoder = RoFormerEncoder(config)
+#         self.inl = nn.Linear(signal_dim, dim_feedforward)
+#         self.outl = nn.Linear(dim_feedforward, latent_dim)
+#
+#     def forward(self, x):
+#         x = self.inl(x.permute(0, 2, 1))
+#         x = self.encoder(x)[0]
+#         x = self.outl(x).permute(0, 2, 1)
+#         return x
