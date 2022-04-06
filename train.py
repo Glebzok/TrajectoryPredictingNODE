@@ -108,7 +108,8 @@ class SingleTrajectoryTrainer:
         with torch.no_grad():
             if len(y_pred.shape) == 3:
                 y_pred = y_pred[0]
-            prediction_table, prediction_video, signals_dict, spectrum_plot = \
+            prediction_table, prediction_video, spectrum_table,\
+            shooting_latent_trajectories, inference_latent_trajectories, signals_dict = \
                 self.trajectory.log_prediction_results(self.shooting,
                                                        t_train, y_clean_train, y_train, z_pred, y_pred,
                                                        t_test, y_clean_test, y_test)
@@ -119,7 +120,9 @@ class SingleTrajectoryTrainer:
                 log_dict['prediction_results'] = prediction_table
             if prediction_video is not None:
                 log_dict['prediction_results_gif'] = prediction_video
-            log_dict['spectrum'] = spectrum_plot
+            log_dict['spectrum'] = spectrum_table
+            log_dict['shooting_latent_trajectories'] = shooting_latent_trajectories
+            log_dict['inference_latent_trajectories'] = inference_latent_trajectories
 
             wandb.log(log_dict)
 
@@ -216,34 +219,32 @@ class SingleTrajectoryTrainer:
                 if not os.path.exists(f'./model/{self.experiment_name}'):
                     os.mkdir(f'./model/{self.experiment_name}')
 
-            def closure():
-                y_pred, z_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)
-                loss, step_losses = self.calc_loss(y_train, y_pred, shooting_begin_values, shooting_end_values)
+            y_pred, z_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)
+            loss, step_losses = self.calc_loss(y_train, y_pred, shooting_begin_values, shooting_end_values)
 
-                self.optimizer.zero_grad()
-                loss.backward()
+            self.optimizer.zero_grad()
+            loss.backward()
 
-                if (itr % self.config['logging_interval'] == 0) and (not self.logged):
-                    # print(itr)
-                    self.shooting.eval()
-                    signals_dict = \
-                        self.log_step(itr, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test,
-                                      step_losses)
+            if (itr % self.config['logging_interval'] == 0) and (not self.logged):
+                # print(itr)
+                self.shooting.eval()
+                signals_dict = \
+                    self.log_step(itr, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test,
+                                  step_losses)
 
-                    if itr % (100 * self.config['logging_interval']) == 0:
-                        # print(itr, itr)
-                        self.save_model(itr, signals_dict)
+                if itr % (100 * self.config['logging_interval']) == 0:
+                    # print(itr, itr)
+                    self.save_model(itr, signals_dict)
 
-                    self.shooting.train()
-                    self.logged = True
+                self.shooting.train()
+                self.logged = True
 
-                # if itr == 60:
-                #     print('l', shooting_begin_values.detach())
-                #     print('r', shooting_end_values.detach())
-                #     print('lrhs', self.shooting.rhs(None, shooting_begin_values).detach())
-                #     print('rrhs', self.shooting.rhs(None, shooting_end_values).detach())
+            # if itr == 60:
+            #     print('l', shooting_begin_values.detach())
+            #     print('r', shooting_end_values.detach())
+            #     print('lrhs', self.shooting.rhs(None, shooting_begin_values).detach())
+            #     print('rrhs', self.shooting.rhs(None, shooting_end_values).detach())
 
-                return loss
 
-            self.optimizer.step(closure)
+            self.optimizer.step()
             # self.scheduler.step()

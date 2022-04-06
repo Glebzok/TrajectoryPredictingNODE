@@ -24,7 +24,7 @@ np.random.seed(seed)
 random.seed(seed)
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '1'
     DATASET = 'SPIRAL'
     # experiment_name = 'SPIRAL div 3 points (expt) multiple shooting 5 vars even more steps, 4T, 1e-4 lr 1e-3 wd, linear rhs, 5 layer 0.3 dropout (add linear layers) new permformer decoder, 50 latent dim, 1e-3 incr, norm init W, log t (uniform grid)'
     # experiment_name = 'test weight scaling 2'
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     training_params = training_params = {'lambda1': 1e-9, 'lambda2': 1e-9, 'lambda3': 1e-9, 'lambda4': 0,
                        'l2_lambda': 0, 'log_norm_lambda': 1e2,
                        'n_iter': 512000, 'lr': 1e-4,
-                       'logging_interval': 5, 'shooting_lambda_step': 1e-3}
+                       'logging_interval': 500, 'shooting_lambda_step': 1e-3}
 
     # trajectory = LorenzTrajectory(0, (0, 1, 2), T=12, n_points=402)
     # trajectory = PendulumTrajectory()
@@ -66,7 +66,7 @@ if __name__ == '__main__':
                tags=['SingleTrajectory'],
                config=config,
                name=experiment_name,
-               mode='disabled')
+               mode='online')
 
     wandb.watch(shooting)
     SingleTrajectoryTrainer(trajectory, shooting, config, experiment_name).train(device)

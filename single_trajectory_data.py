@@ -91,32 +91,48 @@ class Trajectory():
                                                           y_test_inference.reshape([*self.init_dim, -1])])
 
         log_video = log_video[:, :, :, None].transpose([2, 3, 0, 1])
-        log_video = ((log_video - log_video.min()) / (log_video.max() - log_video.min()) * 255.).astype('uint8').copy()
-        # print(y_clean_train, y_train, y_pred, y_train_inference,
-        #       y_clean_test, y_test, y_test_inference, log_video)
-        # a = np.zeros([2, 2, 2])[:, :, :, None].transpose([2, 3, 0, 1]).astype('uint8')
-        # print(a)
-        log_video = wandb.Video(log_video, format='gif')
+        log_video = ((log_video - log_video.min()) / (log_video.max() - log_video.min()) * 255.).astype('uint8')
+        log_video = wandb.Video(log_video)
 
         return log_video
 
     def log_spectrum(self, model):
         eigv = np.linalg.eigvals(model.rhs.linear.weight.detach().cpu().numpy())
 
-        fig = plt.figure(figsize=(10, 10))
-        plt.scatter(eigv.real, eigv.imag, alpha=0.5)
-        plt.xlabel('$Re(\lambda)$')
-        plt.ylabel('$Im(\lambda)$')
+        spectrum_table = wandb.Table(data=[[x, y] for (x, y) in zip(eigv.real, eigv.imag)], columns=["Re", "Im"])
+
+        return spectrum_table
+
+    def log_latent_trajectories(self, t_train, z_pred, t_test, z_train_inference, z_test_inference):
+        points_per_shooting_var, n_shooting_vars, latent_dim = z_pred.shape
+
+        last_point = z_pred[-1:, -1, :]  # (1, latent_dim)
+        z_pred = np.concatenate([z_pred[:-1, :, :].transpose([1, 0, 2]).reshape(-1, latent_dim), last_point],
+                                axis=0).T  # (latent_dim, T)
+
+        plt.rcParams.update({'font.size': 22})
+
+        shooting_fig = plt.figure(figsize=(20, 10), num=1, clear=True)
+        for z in z_pred:
+            plt.plot(t_train, z)
+            plt.scatter(t_train[::points_per_shooting_var], z[::points_per_shooting_var])
+        plt.xlabel('$t$')
+        plt.ylabel('$z_i(t)$')
+        plt.title('Latent shooting trajectories')
         plt.grid()
-        plt.axis('equal')
+        shooting_image = wandb.Image(shooting_fig)
 
-        # plot = wandb.Table(data=[[x, y] for (x, y) in zip(eigv.real, eigv.imag)], columns=["Re", "Im"])
-        # plot = wandb.plot.scatter(table, "Re", "Im")
+        inference_fig = plt.figure(figsize=(20, 10), num=1, clear=True)
+        for z_train, z_test in zip(z_train_inference, z_test_inference):
+            plt.plot(t_train, z_train)
+            plt.plot(t_test, z_test)
+        plt.xlabel('$t$')
+        plt.ylabel('$z_i(t)$')
+        plt.title('Latent inference trajectories')
+        plt.grid()
+        inference_image = wandb.Image(inference_fig)
 
-        plot = wandb.Image(fig)
-        # plot = None
-
-        return plot
+        return shooting_image, inference_image
 
     def log_prediction_results(self, model, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test):
         y_inference, z_inference = model.inference(torch.cat([t_train, t_test]), y_train)  # (signal_dim, T), (latent_dim, T)
@@ -160,13 +176,11 @@ class Trajectory():
         else:
             log_video = None
 
-        spectrum_plot = self.log_spectrum(model)
+        spectrum_table = self.log_spectrum(model)
+        shooting_latent_trajectories, inference_latent_trajectories = \
+            self.log_latent_trajectories(t_train, z_pred, t_test, z_train_inference, z_test_inference)
 
-        # spectrum_plot = None
-        # log_video = None
-        # log_table = None
-
-        return log_table, log_video, signals, spectrum_plot
+        return log_table, log_video, spectrum_table, shooting_latent_trajectories, inference_latent_trajectories, signals
 
 
 class SinTrajectory(Trajectory):
