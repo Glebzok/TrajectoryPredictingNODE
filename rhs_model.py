@@ -25,6 +25,7 @@ class SimpleRHS(nn.Module):
         self.system_dim = system_dim
         # self.linear = nn.utils.parametrizations.spectral_norm(nn.Linear(in_features=system_dim, out_features=system_dim, bias=False))
         self.linear = nn.Linear(in_features=system_dim, out_features=system_dim, bias=False)
+        # self.linear.weight.data *= 3
         # nn.utils.parametrize.register_parametrization(self.linear, 'weight', SpectralShift())
 
         # self.dropout1 = nn.Dropout(p=0.3)
@@ -34,7 +35,6 @@ class SimpleRHS(nn.Module):
             self.linear.parametrizations.weight.original.data = get_hippo_matrix(system_dim)
 
         # self.linear.weight.data /= T
-        self.linear.weight.data *= 10
         # self.linear.parametrizations.weight.original.data *= 10
 
     def forward(self, t, x):

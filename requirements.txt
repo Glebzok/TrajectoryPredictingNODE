@@ -1,6 +1,9 @@
+imageio
 matplotlib
+moviepy
 numpy
 pandas
+# plotly
 torch
 torchdiffeq
 # transformers

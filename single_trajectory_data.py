@@ -5,6 +5,7 @@ from torchdiffeq import odeint_adjoint as odeint
 import numpy as np
 import pandas as pd
 from math import pi, log, e
+import matplotlib.pyplot as plt
 
 import pickle as pkl
 
@@ -30,24 +31,14 @@ class Trajectory():
     def __call__(self):
         raise NotImplementedError()
 
-    def log_prediction_results(self, model, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test):
-        y_inference, z_inference = model.inference(torch.cat([t_train, t_test]), y_train)  # (signal_dim, T), (latent_dim, T)
-        y_train_inference = y_inference[:, :t_train.shape[0]]
-        y_test_inference = y_inference[:, t_train.shape[0]:]
-        z_train_inference = z_inference[:, :t_train.shape[0]]
-        z_test_inference = z_inference[:, t_train.shape[0]:]
-
-        t_train, y_clean_train, y_train, z_pred, y_pred, y_train_inference, t_test, y_clean_test, y_test, \
-            y_test_inference, z_train_inference, z_test_inference = \
-                t_train.cpu(), y_clean_train.cpu(), y_train.cpu(), z_pred.detach().cpu(), y_pred.detach().cpu(), \
-                y_train_inference.detach().cpu(), t_test.cpu(), y_clean_test.cpu(), y_test.cpu(),\
-                y_test_inference.detach().cpu(), z_train_inference.detach().cpu(), z_test_inference.detach().cpu()
-
-        train_log_table = pd.DataFrame(np.concatenate([t_train.numpy().reshape(-1, 1),
-                                                       y_clean_train.numpy().T,
-                                                       y_train.numpy().T,
-                                                       y_pred.numpy().T,
-                                                       y_train_inference.numpy().T], axis=1),
+    def log_prediction_table(self,
+                             t_train, y_clean_train, y_train, y_pred, y_train_inference,
+                             t_test, y_clean_test, y_test, y_test_inference):
+        train_log_table = pd.DataFrame(np.concatenate([t_train.reshape(-1, 1),
+                                                       y_clean_train.T,
+                                                       y_train.T,
+                                                       y_pred.T,
+                                                       y_train_inference.T], axis=1),
                                        columns=['t'] \
                                                + ['y_true_clean_y%i' % i for i in self.visible_dims] \
                                                + ['y_true_noisy_y%i' % i for i in self.visible_dims] \
@@ -57,10 +48,10 @@ class Trajectory():
         train_log_table = pd.melt(train_log_table, id_vars=['t'], value_name='y', var_name='description')
         train_log_table['stage'] = 'train'
 
-        test_log_table = pd.DataFrame(np.concatenate([t_test.numpy().reshape(-1, 1),
-                                                      y_clean_test.numpy().T,
-                                                      y_test.numpy().T,
-                                                      y_test_inference.numpy().T], axis=1),
+        test_log_table = pd.DataFrame(np.concatenate([t_test.reshape(-1, 1),
+                                                      y_clean_test.T,
+                                                      y_test.T,
+                                                      y_test_inference.T], axis=1),
                                       columns=['t'] \
                                               + ['y_true_clean_y%i' % i for i in self.visible_dims] \
                                               + ['y_true_noisy_y%i' % i for i in self.visible_dims] \
@@ -75,26 +66,107 @@ class Trajectory():
         log_table['variable'] = log_table['description'].str.split('_').str[3]
 
         log_table = pd.pivot_table(log_table.drop(columns=['description']),
-                                   values='y',index=['t', 'stage', 'type', 'subtype'],
+                                   values='y', index=['t', 'stage', 'type', 'subtype'],
                                    columns=['variable']).reset_index()
 
         log_table = wandb.Table(dataframe=log_table)
+        return log_table
+
+    def log_prediction_gif(self,
+                           y_clean_train, y_train, y_pred, y_train_inference,
+                           y_clean_test, y_test, y_test_inference):
+        train_len, test_len = y_train.shape[-1], y_test.shape[-1]
+        max_len = max([train_len, test_len])
+
+        height, width = self.init_dim
+
+        log_video = np.zeros([height * 4, width * 2, max_len])
+        log_video[:, :width, :train_len] = np.concatenate([y_clean_train.reshape([*self.init_dim, -1]),
+                                                           y_train.reshape([*self.init_dim, -1]),
+                                                           y_pred.reshape([*self.init_dim, -1]),
+                                                           y_train_inference.reshape([*self.init_dim, -1])])
+        log_video[:, width:, :test_len] = np.concatenate([y_clean_test.reshape([*self.init_dim, -1]),
+                                                          y_test.reshape([*self.init_dim, -1]),
+                                                          np.zeros_like(y_test).reshape([*self.init_dim, -1]),
+                                                          y_test_inference.reshape([*self.init_dim, -1])])
+
+        log_video = log_video[:, :, :, None].transpose([2, 3, 0, 1])
+        log_video = ((log_video - log_video.min()) / (log_video.max() - log_video.min()) * 255.).astype('uint8').copy()
+        # print(y_clean_train, y_train, y_pred, y_train_inference,
+        #       y_clean_test, y_test, y_test_inference, log_video)
+        # a = np.zeros([2, 2, 2])[:, :, :, None].transpose([2, 3, 0, 1]).astype('uint8')
+        # print(a)
+        log_video = wandb.Video(log_video, format='gif')
+
+        return log_video
+
+    def log_spectrum(self, model):
+        eigv = np.linalg.eigvals(model.rhs.linear.weight.detach().cpu().numpy())
+
+        fig = plt.figure(figsize=(10, 10))
+        plt.scatter(eigv.real, eigv.imag, alpha=0.5)
+        plt.xlabel('$Re(\lambda)$')
+        plt.ylabel('$Im(\lambda)$')
+        plt.grid()
+        plt.axis('equal')
+
+        # plot = wandb.Table(data=[[x, y] for (x, y) in zip(eigv.real, eigv.imag)], columns=["Re", "Im"])
+        # plot = wandb.plot.scatter(table, "Re", "Im")
+
+        plot = wandb.Image(fig)
+        # plot = None
+
+        return plot
+
+    def log_prediction_results(self, model, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test):
+        y_inference, z_inference = model.inference(torch.cat([t_train, t_test]), y_train)  # (signal_dim, T), (latent_dim, T)
+        y_train_inference = y_inference[:, :t_train.shape[0]]
+        y_test_inference = y_inference[:, t_train.shape[0]:]
+        z_train_inference = z_inference[:, :t_train.shape[0]]
+        z_test_inference = z_inference[:, t_train.shape[0]:]
+
+        t_train, y_clean_train, y_train, z_pred, y_pred, y_train_inference, t_test, y_clean_test, y_test, \
+            y_test_inference, z_train_inference, z_test_inference = \
+                t_train.cpu().numpy(), y_clean_train.cpu().numpy(), y_train.cpu().numpy(),\
+                z_pred.detach().cpu().numpy(), y_pred.detach().cpu().numpy(), \
+                y_train_inference.detach().cpu().numpy(), t_test.cpu().numpy(),\
+                y_clean_test.cpu().numpy(), y_test.cpu().numpy(),\
+                y_test_inference.detach().cpu().numpy(),\
+                z_train_inference.detach().cpu().numpy(), z_test_inference.detach().cpu().numpy()
 
         signals = \
-            {'true': {'t_train': t_train.numpy(),
-                      't_test': t_test.numpy(),
-                      'y_clean_train': y_clean_train.numpy(),
-                      'y_train': y_train.numpy(),
-                      'y_clean_test': y_clean_test.numpy(),
-                      'y_test': y_test.numpy()},
-             'pred': {'y_train_pred': y_pred.numpy(),
-                      'z_train_pred': z_pred.numpy(),
-                      'y_train_inference': y_train_inference.numpy(),
-                      'y_test_inference': y_test_inference.numpy(),
-                      'z_train_inference': z_train_inference.numpy(),
-                      'z_test_inference': z_test_inference.numpy()}}
+            {'true': {'t_train': t_train,
+                      't_test': t_test,
+                      'y_clean_train': y_clean_train,
+                      'y_train': y_train,
+                      'y_clean_test': y_clean_test,
+                      'y_test': y_test},
+             'pred': {'y_train_pred': y_pred,
+                      'z_train_pred': z_pred,
+                      'y_train_inference': y_train_inference,
+                      'y_test_inference': y_test_inference,
+                      'z_train_inference': z_train_inference,
+                      'z_test_inference': z_test_inference}}
 
-        return log_table, signals
+        if len(self.visible_dims) <= 3:
+            log_table = self.log_prediction_table(t_train, y_clean_train, y_train, y_pred, y_train_inference,
+                                                  t_test, y_clean_test, y_test, y_test_inference)
+        else:
+            log_table = None
+
+        if self.signal_dim > 3:
+            log_video = self.log_prediction_gif(y_clean_train, y_train, y_pred, y_train_inference,
+                                                y_clean_test, y_test, y_test_inference)
+        else:
+            log_video = None
+
+        spectrum_plot = self.log_spectrum(model)
+
+        # spectrum_plot = None
+        # log_video = None
+        # log_table = None
+
+        return log_table, log_video, signals, spectrum_plot
 
 
 class SinTrajectory(Trajectory):
@@ -131,13 +203,13 @@ class SpiralTrajectory(Trajectory):
         self.rhs = self.RHS()
 
     def __call__(self):
-        # t = torch.linspace(self.t0, self.T, self.n_points)
-        t = torch.logspace(0, log(self.T + 1), self.n_points, base=e) - 1
+        t = torch.linspace(self.t0, self.T, self.n_points)
+        # t = torch.logspace(0, log(self.T + 1), self.n_points, base=e) - 1
         y0 = torch.tensor([1., 0.]).view(1, -1) * self.signal_amp
         y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0) # (#visible_dims, T)
         y = self.generate_visible_trajectory(y_clean)
 
-        t = torch.log(t + 1) / log(self.T + 1) * self.T
+        # t = torch.log(t + 1) / log(self.T + 1) * self.T
 
         return t, y_clean, y
 
@@ -187,3 +259,99 @@ class CascadedTanksTrajectory(Trajectory):
         y, t = torch.tensor(data['y'], dtype=torch.float32), torch.tensor(data['t'], dtype=torch.float32)
 
         return t, y, y
+
+
+class PendulumTrajectory(Trajectory):
+    def __init__(self, visible_dims=(0, 1), T=100, n_points=802, noise_std=0., m=5., l=10., lambd=0.05):
+        super().__init__(t0=0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=1)
+        self.m = m
+        self.l = l
+        self.lambd = lambd
+
+        self.rhs = self.RHS(m, l, lambd)
+
+        self.signal_dim = 2
+        self.visible_dims = list(visible_dims)
+
+    class RHS(nn.Module):
+        def __init__(self, m, l, lambd):
+            super().__init__()
+
+            self.l = l
+            self.lambd = lambd
+            self.m = m
+
+            self.A = torch.tensor([[0., 1.],
+                                   [-10. / l, -lambd / m]], dtype=torch.float32)
+
+        def forward(self, t, x):
+            res = torch.tensor([[x[:, 1],
+                                 - 10. / self.l * torch.sin(x[:, 0]) - self.lambd / self.m * x[:, 1]]],
+                               dtype=torch.float32)
+            return res
+
+    def __call__(self):
+        t = torch.linspace(self.t0, self.T, self.n_points)
+        y0 = torch.tensor([3.12, 0.]).view(1, -1)
+
+        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
+        y = self.generate_visible_trajectory(y_clean)
+
+        return t, y_clean, y
+
+
+class FluidFlowTrajectory(Trajectory):
+    def __init__(self, visible_dims=(0, 1, 2), T=50, n_points=802, noise_std=0., mu=0.1, omega=1, A=-0.1, lam=10):
+        super().__init__(t0=0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=1)
+
+        self.mu = mu
+        self.omega = omega
+        self.A = A
+        self.lam = lam
+
+        self.rhs = self.RHS(mu=self.mu, omega=self.omega, A=self.A, lam=self.lam)
+
+        self.signal_dim = 2
+        self.visible_dims = list(visible_dims)
+
+    class RHS(nn.Module):
+        def __init__(self, mu, omega, A, lam):
+            super().__init__()
+
+            self.mu = mu
+            self.omega = omega
+            self.A = A
+            self.lam = lam
+
+        def forward(self, t, x):
+            res = torch.tensor([[self.mu * x[:, 0] - self.omega * x[:, 1] + self.A * x[:, 0] * x[:, 2],
+                                 self.omega * x[:, 0] + self.mu * x[:, 1] + self.A * x[:, 1] * x[:, 2],
+                                 - self.lam * (x[:, 2] - x[:, 0] ** 2 - x[:, 1] ** 2)]], dtype=torch.float32)
+            return res
+
+    def __call__(self):
+        t = torch.linspace(self.t0, self.T, self.n_points)
+        y0 = torch.tensor([-.1, -.2, .05]).view(1, -1)
+
+        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
+        y = self.generate_visible_trajectory(y_clean)
+
+        return t, y_clean, y
+
+
+class KarmanVortexStreet(Trajectory):
+    def __init__(self, noise_std=0.):
+        super().__init__(t0=0, T=100., n_points=98, noise_std=noise_std, signal_amp=1)
+
+        self.data = torch.tensor(np.load('karman_snapshots.npz')['snapshots'], dtype=torch.float32)[:, :, :-3]
+        self.init_dim = self.data.shape[:2]
+
+        self.signal_dim = self.init_dim[0] * self.init_dim[1]
+        self.visible_dims = list(range(self.signal_dim))
+
+    def __call__(self):
+        t = torch.linspace(self.t0, self.T, self.n_points)
+        y_clean = self.data.reshape(self.signal_dim, -1)
+        y = self.generate_visible_trajectory(y_clean)
+
+        return t, y_clean, y

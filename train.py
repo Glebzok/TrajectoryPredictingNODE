@@ -108,11 +108,18 @@ class SingleTrajectoryTrainer:
         with torch.no_grad():
             if len(y_pred.shape) == 3:
                 y_pred = y_pred[0]
-            prediction_table, signals_dict = \
+            prediction_table, prediction_video, signals_dict, spectrum_plot = \
                 self.trajectory.log_prediction_results(self.shooting,
                                                        t_train, y_clean_train, y_train, z_pred, y_pred,
                                                        t_test, y_clean_test, y_test)
-            log_dict = dict(losses_dict, **{'step': itr, 'prediction_results': prediction_table})
+
+            log_dict = losses_dict
+            log_dict['step'] = itr
+            if prediction_table is not None:
+                log_dict['prediction_results'] = prediction_table
+            if prediction_video is not None:
+                log_dict['prediction_results_gif'] = prediction_video
+            log_dict['spectrum'] = spectrum_plot
 
             wandb.log(log_dict)
 
@@ -177,8 +184,7 @@ class SingleTrajectoryTrainer:
             losses['L2 loss'] = l2_reg.item()
 
         if self.log_norm_lambda > 0:
-            log_norm = max(torch.linalg.eigvalsh(self.shooting.rhs.linear.weight + self.shooting.rhs.linear.weight.T)[-1],
-                           torch.tensor(0., requires_grad=True, device=y.device))
+            log_norm = F.relu(torch.linalg.eigvalsh(self.shooting.rhs.linear.weight + self.shooting.rhs.linear.weight.T)[-1])
 
             loss += self.log_norm_lambda * log_norm
             losses['log_norm'] = log_norm.item()
@@ -199,6 +205,7 @@ class SingleTrajectoryTrainer:
         # self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'], tolerance_change=1e-30)
         # self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.99)
 
+        # with torch.autograd.detect_anomaly():
         for itr in tqdm(range(self.config['n_iter'])):
 
             self.logged = False
@@ -217,12 +224,14 @@ class SingleTrajectoryTrainer:
                 loss.backward()
 
                 if (itr % self.config['logging_interval'] == 0) and (not self.logged):
+                    # print(itr)
                     self.shooting.eval()
                     signals_dict = \
                         self.log_step(itr, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test,
                                       step_losses)
 
                     if itr % (100 * self.config['logging_interval']) == 0:
+                        # print(itr, itr)
                         self.save_model(itr, signals_dict)
 
                     self.shooting.train()
