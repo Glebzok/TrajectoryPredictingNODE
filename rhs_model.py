@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.nn.functional as F
 import torch
 
 
@@ -19,20 +20,56 @@ class SpectralShift(nn.Module):
         return X - max_real_eigv_part * torch.eye(X.shape[0], device=X.device)
 
 
+class StableLinear(nn.Module):
+    def __init__(self, n):
+        super().__init__()
+        self.X = nn.parameter.Parameter(self.get_normalized_matrix(n))
+        self.K = nn.parameter.Parameter(self.get_normalized_matrix(n))
+
+    @property
+    def weight(self):
+        K = self.K.triu(1)
+        K = K - K.T
+        return - self.X @ self.X.T + K
+
+    @staticmethod
+    def get_normalized_matrix(n):
+        X = torch.rand((n, n))
+        X /= torch.linalg.norm(X)
+        return X
+
+    def forward(self, x):
+        return F.linear(x, self.weight)
+
+
+class StableLinearV2(StableLinear):
+    def __init__(self, n):
+        super().__init__(n=n)
+        self.Y = nn.parameter.Parameter(self.get_normalized_matrix(n))
+        self.X.data = torch.eye(n)
+
+    @property
+    def weight(self):
+        K = self.K.triu(1)
+        K = K - K.T
+        return (self.X @ self.X.T) @ (K - self.Y @ self.Y.T)
+
+
 class SimpleRHS(nn.Module):
     def __init__(self, system_dim, T=1, use_hippo_init=False):
         super().__init__()
         self.system_dim = system_dim
         # self.linear = nn.utils.parametrizations.spectral_norm(nn.Linear(in_features=system_dim, out_features=system_dim, bias=False))
-        self.linear = nn.Linear(in_features=system_dim, out_features=system_dim, bias=False)
+        # self.linear = nn.Linear(in_features=system_dim, out_features=system_dim, bias=False)
+        self.linear = StableLinear(n=system_dim)
         # self.linear.weight.data *= 3
         # nn.utils.parametrize.register_parametrization(self.linear, 'weight', SpectralShift())
 
         # self.dropout1 = nn.Dropout(p=0.3)
         # self.dropout2 = nn.Dropout(p=0.3)
 
-        if use_hippo_init:
-            self.linear.parametrizations.weight.original.data = get_hippo_matrix(system_dim)
+        # if use_hippo_init:
+        #     self.linear.parametrizations.weight.original.data = get_hippo_matrix(system_dim)
 
         # self.linear.weight.data /= T
         # self.linear.parametrizations.weight.original.data *= 10

@@ -108,7 +108,7 @@ class SingleTrajectoryTrainer:
         with torch.no_grad():
             if len(y_pred.shape) == 3:
                 y_pred = y_pred[0]
-            prediction_table, prediction_video, spectrum_table,\
+            prediction_table, prediction_video, prediction_image, spectrum_table,\
             shooting_latent_trajectories, inference_latent_trajectories, signals_dict = \
                 self.trajectory.log_prediction_results(self.shooting,
                                                        t_train, y_clean_train, y_train, z_pred, y_pred,
@@ -120,6 +120,8 @@ class SingleTrajectoryTrainer:
                 log_dict['prediction_results'] = prediction_table
             if prediction_video is not None:
                 log_dict['prediction_results_gif'] = prediction_video
+            if prediction_image is not None:
+                log_dict['prediction_image'] = prediction_image
             log_dict['spectrum'] = spectrum_table
             log_dict['shooting_latent_trajectories'] = shooting_latent_trajectories
             log_dict['inference_latent_trajectories'] = inference_latent_trajectories
@@ -156,19 +158,22 @@ class SingleTrajectoryTrainer:
         if self.lambda1 > 0:
             shooting_latent_loss = F.mse_loss(shooting_begin_values, shooting_end_values)
             loss += self.lambda1 * shooting_latent_loss
-            self.lambda1 += self.config['shooting_lambda_step']
+            if shooting_latent_loss > 1e-7:
+                self.lambda1 += self.config['shooting_lambda_step']
             losses['Shooting latent loss'] = shooting_latent_loss.item()
         if self.lambda2 > 0:
             shooting_loss = F.mse_loss(self.shooting.decoder(shooting_begin_values[:, None, :]),
                                        self.shooting.decoder(shooting_end_values[:, None, :]))
             loss += self.lambda2 * shooting_loss
-            self.lambda2 += self.config['shooting_lambda_step']
+            if shooting_loss > 1e-7:
+                self.lambda2 += self.config['shooting_lambda_step']
             losses['Shooting loss'] = shooting_loss.item()
         if self.lambda3 > 0:
             shooting_rhs_loss = F.mse_loss(self.shooting.rhs(None, shooting_begin_values),
                                            self.shooting.rhs(None, shooting_end_values))
             loss += self.lambda3 * shooting_rhs_loss
-            self.lambda3 += self.config['shooting_lambda_step']
+            if shooting_rhs_loss > 1e-7:
+                self.lambda3 += self.config['shooting_lambda_step']
             losses['Shooting RHS loss'] = shooting_rhs_loss.item()
 
         if self.lambda4 > 0:
@@ -215,7 +220,7 @@ class SingleTrajectoryTrainer:
 
             if itr == 0:
                 # self.log_model()
-                self.shooting = self.shooting.to(device)
+                # self.shooting = self.shooting.to(device)
                 if not os.path.exists(f'./model/{self.experiment_name}'):
                     os.mkdir(f'./model/{self.experiment_name}')
 

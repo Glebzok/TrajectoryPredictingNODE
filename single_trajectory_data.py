@@ -72,6 +72,26 @@ class Trajectory():
         log_table = wandb.Table(dataframe=log_table)
         return log_table
 
+    def log_prediction_image(self,
+                             y_clean_train, y_train, y_pred, y_train_inference,
+                             y_clean_test, y_test, y_test_inference):
+
+        train_len, test_len = y_train.shape[-1], y_test.shape[-1]
+
+        dim = y_train.shape[0]
+
+        log_image = np.zeros([dim * 4, train_len + test_len, 1])
+        log_image[:, :train_len, 0] = np.concatenate([y_clean_train,
+                                                      y_train,
+                                                      y_pred,
+                                                      y_train_inference])
+        log_image[:, train_len:, 0] = np.concatenate([y_clean_test,
+                                                      y_test,
+                                                      np.zeros_like(y_test),
+                                                      y_test_inference])
+        log_image = wandb.Image(log_image)
+        return log_image
+
     def log_prediction_gif(self,
                            y_clean_train, y_train, y_pred, y_train_inference,
                            y_clean_test, y_test, y_test_inference):
@@ -105,6 +125,7 @@ class Trajectory():
 
     def log_latent_trajectories(self, t_train, z_pred, t_test, z_train_inference, z_test_inference):
         points_per_shooting_var, n_shooting_vars, latent_dim = z_pred.shape
+        points_per_shooting_var -= 1
 
         last_point = z_pred[-1:, -1, :]  # (1, latent_dim)
         z_pred = np.concatenate([z_pred[:-1, :, :].transpose([1, 0, 2]).reshape(-1, latent_dim), last_point],
@@ -115,7 +136,7 @@ class Trajectory():
         shooting_fig = plt.figure(figsize=(20, 10), num=1, clear=True)
         for z in z_pred:
             plt.plot(t_train, z)
-            plt.scatter(t_train[::points_per_shooting_var], z[::points_per_shooting_var])
+            plt.scatter(t_train[:-1:points_per_shooting_var], z[:-1:points_per_shooting_var])
         plt.xlabel('$t$')
         plt.ylabel('$z_i(t)$')
         plt.title('Latent shooting trajectories')
@@ -171,8 +192,14 @@ class Trajectory():
             log_table = None
 
         if self.signal_dim > 3:
-            log_video = self.log_prediction_gif(y_clean_train, y_train, y_pred, y_train_inference,
-                                                y_clean_test, y_test, y_test_inference)
+            if self.init_dim is None:
+                log_video = None
+                log_image = self.log_prediction_image(y_clean_train, y_train, y_pred, y_train_inference,
+                                                      y_clean_test, y_test, y_test_inference)
+            else:
+                log_video = self.log_prediction_gif(y_clean_train, y_train, y_pred, y_train_inference,
+                                                    y_clean_test, y_test, y_test_inference)
+                log_image = None
         else:
             log_video = None
 
@@ -180,7 +207,8 @@ class Trajectory():
         shooting_latent_trajectories, inference_latent_trajectories = \
             self.log_latent_trajectories(t_train, z_pred, t_test, z_train_inference, z_test_inference)
 
-        return log_table, log_video, spectrum_table, shooting_latent_trajectories, inference_latent_trajectories, signals
+        return log_table, log_video, log_image, spectrum_table,\
+               shooting_latent_trajectories, inference_latent_trajectories, signals
 
 
 class SinTrajectory(Trajectory):
@@ -366,6 +394,29 @@ class KarmanVortexStreet(Trajectory):
     def __call__(self):
         t = torch.linspace(self.t0, self.T, self.n_points)
         y_clean = self.data.reshape(self.signal_dim, -1)
+        y = self.generate_visible_trajectory(y_clean)
+
+        return t, y_clean, y
+
+
+class ToyDataset(Trajectory):
+    def __init__(self, T=4 * np.pi, n_points=402, noise_std=0.):
+        super().__init__(t0=0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=1)
+
+        self.init_dim = None
+        self.signal_dim = 128
+        self.visible_dims = list(range(self.signal_dim))
+
+    def __call__(self):
+        f1 = lambda x, t: 1. / torch.cosh(x + 3) * torch.exp(2.3j * t)
+        f2 = lambda x, t: 2. / torch.cosh(x) * torch.tanh(x) * torch.exp(2.8j * t)
+
+        x = torch.linspace(-5, 5, self.signal_dim)
+        t = torch.linspace(0, self.T, self.n_points)
+
+        xgrid, tgrid = torch.meshgrid(x, t)
+
+        y_clean = (f1(xgrid, tgrid) + f2(xgrid, tgrid)).real
         y = self.generate_visible_trajectory(y_clean)
 
         return t, y_clean, y
