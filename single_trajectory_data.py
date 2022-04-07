@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torchdiffeq import odeint_adjoint as odeint
 
 import numpy as np
@@ -112,7 +113,7 @@ class Trajectory():
 
         log_video = log_video[:, :, :, None].transpose([2, 3, 0, 1])
         log_video = ((log_video - log_video.min()) / (log_video.max() - log_video.min()) * 255.).astype('uint8')
-        log_video = wandb.Video(log_video)
+        log_video = wandb.Video(log_video, fps=12)
 
         return log_video
 
@@ -382,10 +383,11 @@ class FluidFlowTrajectory(Trajectory):
 
 
 class KarmanVortexStreet(Trajectory):
-    def __init__(self, noise_std=0.):
-        super().__init__(t0=0, T=100., n_points=98, noise_std=noise_std, signal_amp=1)
+    def __init__(self, n_points=402, noise_std=0.):
+        super().__init__(t0=0, T=10., n_points=n_points, noise_std=noise_std, signal_amp=1)
 
-        self.data = torch.tensor(np.load('karman_snapshots.npz')['snapshots'], dtype=torch.float32)[:, :, :-3]
+        self.data = F.interpolate(100. * torch.tensor(np.load('karman_snapshots.npz')['snapshots'], dtype=torch.float32),
+                                  n_points, mode='linear', align_corners=False)
         self.init_dim = self.data.shape[:2]
 
         self.signal_dim = self.init_dim[0] * self.init_dim[1]
