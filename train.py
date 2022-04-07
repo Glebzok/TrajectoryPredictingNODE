@@ -151,29 +151,28 @@ class SingleTrajectoryTrainer:
         # print(t_train.shape, y_train.shape, t_test.shape, y_test.shape)
         return t_train, y_clean_train, y_train, t_test, y_clean_test, y_test
 
-    def calc_loss(self, y, pred_y, shooting_begin_values, shooting_end_values):
+    def calc_loss(self, y, pred_y, z_pred):
+        #z_pred (t, n_shooting_vars, latent_dim)
         rec_loss = F.mse_loss(y, pred_y)
         loss = rec_loss
         losses = {'Reconstruction loss': rec_loss.item()}
         if self.lambda1 > 0:
-            shooting_latent_loss = F.mse_loss(shooting_begin_values, shooting_end_values)
+            shooting_latent_loss = F.mse_loss(z_pred[0, 1:, :], z_pred[-1, :-1, :])
             loss += self.lambda1 * shooting_latent_loss
-            if shooting_latent_loss > 1e-7:
-                self.lambda1 += self.config['shooting_lambda_step']
+            self.lambda1 += self.config['shooting_lambda_step']
             losses['Shooting latent loss'] = shooting_latent_loss.item()
         if self.lambda2 > 0:
-            shooting_loss = F.mse_loss(self.shooting.decoder(shooting_begin_values[:, None, :]),
-                                       self.shooting.decoder(shooting_end_values[:, None, :]))
+            y_pred_shooting = self.shooting.decoder(z_pred) # (t, n_shooting_vars, signal_dim)
+            shooting_loss = F.mse_loss(y_pred_shooting[0, 1:, :],
+                                       y_pred_shooting[-1, :-1, :])
             loss += self.lambda2 * shooting_loss
-            if shooting_loss > 1e-7:
-                self.lambda2 += self.config['shooting_lambda_step']
+            self.lambda2 += self.config['shooting_lambda_step']
             losses['Shooting loss'] = shooting_loss.item()
         if self.lambda3 > 0:
-            shooting_rhs_loss = F.mse_loss(self.shooting.rhs(None, shooting_begin_values),
-                                           self.shooting.rhs(None, shooting_end_values))
+            shooting_rhs_loss = F.mse_loss(self.shooting.rhs(None, z_pred[0, 1:, :]),
+                                           self.shooting.rhs(None, z_pred[-1, :-1, :]))
             loss += self.lambda3 * shooting_rhs_loss
-            if shooting_rhs_loss > 1e-7:
-                self.lambda3 += self.config['shooting_lambda_step']
+            self.lambda3 += self.config['shooting_lambda_step']
             losses['Shooting RHS loss'] = shooting_rhs_loss.item()
 
         if self.lambda4 > 0:
@@ -224,8 +223,8 @@ class SingleTrajectoryTrainer:
                 if not os.path.exists(f'./model/{self.experiment_name}'):
                     os.mkdir(f'./model/{self.experiment_name}')
 
-            y_pred, z_pred, shooting_end_values, shooting_begin_values = self.shooting(t_train, y_train)
-            loss, step_losses = self.calc_loss(y_train, y_pred, shooting_begin_values, shooting_end_values)
+            y_pred, z_pred = self.shooting(t_train, y_train)
+            loss, step_losses = self.calc_loss(y_train, y_pred, z_pred)
 
             self.optimizer.zero_grad()
             loss.backward()

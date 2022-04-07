@@ -4,7 +4,9 @@ import torch.nn as nn
 from linear_ode_int import matrix_exp_odeint as odeint
 
 from rhs_model import SimpleRHS, FCRHS
-from decoder_model import SimpleLatentSpaceDecoder, FCLatentSpaceDecoder, AlgebraicLatentSpaceDecoder, TransformerLatentSpaceDecoder, PermformerLatentSpaceDecoder
+from decoder_model import SimpleLatentSpaceDecoder, FCLatentSpaceDecoder, AlgebraicLatentSpaceDecoder,\
+    TransformerLatentSpaceDecoder, PermformerLatentSpaceDecoder,\
+    UNetLikeConvLatentSpaceDecoder, Seq2SeqTransformerLatentSpaceDecoder
 from encoder_model import SimpleLatentSpaceEncoder
 
 
@@ -36,7 +38,8 @@ class LatentSingleShooting(nn.Module):
         self.latent_dim = latent_dim
         self.z0 = nn.Parameter(torch.randn(1, latent_dim))
         # self.decoder = SimpleLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim)
-        self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, hidden_dim=40)
+        # self.decoder = FCLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, hidden_dim=100)
+        self.decoder = UNetLikeConvLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, min_channels=10, n_layers=5)
         # self.decoder = AlgebraicLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, hidden_dim=40)
         # self.decoder = TransformerLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, nhead=8,
         #                                              dim_feedforward=256, dropout=0., activation='relu')
@@ -106,12 +109,12 @@ class LatentMultipleShooting(LatentSingleShooting):
 
         subsignal_length = (singal_length - 1) // self.n_shooting_vars + 1
         pred_z = odeint(self.rhs, self.shooting_vars, t[:subsignal_length]).to(y.device)  # (t, n_shooting_vars, latent_dim)
-        shooting_end_values = pred_z[-1, :, :]  # (n_shooting_vars, latent_dim)
+        # shooting_end_values = pred_z[-1, :, :]  # (n_shooting_vars, latent_dim)
         pred_y = self.decoder(pred_z)  # (t, n_shooting_vars, signal_dim)
         last_point = pred_y[-1:, -1, :]  # (1, signal_dim)
         pred_y = torch.cat([pred_y[:-1, :, :].permute(1, 0, 2).reshape(-1, signal_dim), last_point], dim=0)  # (T, signal_dim)
         pred_y = pred_y.permute(1, 0)  # (signal_dim, T)
-        return pred_y, pred_z, shooting_end_values[:-1, :], self.shooting_vars[1:, :]
+        return pred_y, pred_z#, shooting_end_values[:-1, :], self.shooting_vars[1:, :]
 
     def inference(self, t, y):
         # y : (signal_dim, T)
