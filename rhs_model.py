@@ -2,6 +2,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
+from pointwise_nets import FCNet, LinearNet
+
 
 def get_hippo_matrix(n):
   row = ((2 * torch.arange(1, n+1, 1) + 1) ** 0.5)
@@ -81,25 +83,28 @@ class SimpleRHS(nn.Module):
         return x
 
 
-class FCRHS(nn.Module):
+class FCRHS(FCNet):
     def __init__(self, system_dim, n_layers, hidden_dim):
-        super().__init__()
+        super().__init__(input_dim=system_dim, output_dim=system_dim,
+                         n_layers=n_layers, hidden_dim=hidden_dim)
         self.system_dim = system_dim
-        if n_layers == 1:
-            self.layers = nn.ModuleList([nn.Linear(system_dim, system_dim)])
-        elif n_layers == 2:
-            self.layers = nn.ModuleList([nn.Linear(system_dim, hidden_dim),
-                                         nn.Linear(hidden_dim, system_dim)])
-        else:
-            self.layers = nn.ModuleList([nn.Linear(system_dim, hidden_dim)] \
-                                        + [nn.Linear(hidden_dim, hidden_dim) for _ in range(n_layers - 2)] \
-                                        + [nn.Linear(hidden_dim, system_dim)])
 
     def forward(self, t, x):
-        for layer in self.layers[:-1]:
-            x = layer(x)
-            x = nn.Tanh()(x)
+        super().forward(x)
 
-        x = self.layers[-1](x)
+        return x
 
+
+class ControlledLinearRHS(nn.Module):
+    def __init__(self, latent_dim, signal_dim, decoder, n_layers, hidden_dim):
+        super().__init__()
+        self.system_dim = latent_dim
+        self.linear = StableLinear(n=latent_dim)
+        self.controller = FCNet(input_dim=signal_dim, output_dim=latent_dim,
+                                n_layers=n_layers, hidden_dim=hidden_dim)
+
+        self.decoder = decoder
+
+    def forward(self, t, x):
+        x = self.linear(x) + self.controller(self.decoder(x))
         return x
