@@ -162,9 +162,17 @@ class SingleTrajectoryTrainer:
             self.lambda1 += self.config['shooting_lambda_step']
             losses['Shooting latent loss'] = shooting_latent_loss.item()
         if self.lambda2 > 0:
-            y_pred_shooting = self.shooting.decoder(z_pred) # (t, n_shooting_vars, signal_dim)
-            shooting_loss = F.mse_loss(y_pred_shooting[0, 1:, :],
-                                       y_pred_shooting[-1, :-1, :])
+            latent_dim = z_pred.shape[-1]
+            pred_z_flattend_left = torch.cat([z_pred[:-1, :, :].permute(1, 0, 2).reshape(-1, latent_dim),
+                                              z_pred[-1:, -1, :]], dim=0)  # (T, latent_dim)
+            pred_z_flattend_right = torch.cat([z_pred[:1, 0, :],
+                                               z_pred[1:, :, :].permute(1, 0, 2).reshape(-1, latent_dim)], dim=0)  # (T, latent_dim)
+
+            y_pred_shooting_left = self.shooting.decoder(pred_z_flattend_left) # (T, signal_dim)
+            y_pred_shooting_right = self.shooting.decoder(pred_z_flattend_right)  # (T, signal_dim)
+
+            shooting_loss = F.mse_loss(y_pred_shooting_left, y_pred_shooting_right)
+
             loss += self.lambda2 * shooting_loss
             self.lambda2 += self.config['shooting_lambda_step']
             losses['Shooting loss'] = shooting_loss.item()
@@ -207,6 +215,7 @@ class SingleTrajectoryTrainer:
             t_test.to(device), y_clean_test.to(device), y_test.to(device)
 
         self.shooting = self.shooting.to(device)
+        self.shooting.rhs.decoder = self.shooting.decoder
         _ = self.shooting(t_train, y_train)
         self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=1e-3)
         # self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'], tolerance_change=1e-30)
