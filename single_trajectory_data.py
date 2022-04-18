@@ -387,22 +387,23 @@ class FluidFlowTrajectory(Trajectory):
 class KarmanVortexStreet(Trajectory):
     def __init__(self, n_points=402, noise_std=0.):
         super().__init__(t0=0, T=10., n_points=n_points, noise_std=noise_std, signal_amp=1)
-
-        # self.data = F.interpolate(100. * torch.tensor(np.load('karman_snapshots.npz')['snapshots'], dtype=torch.float32),
-        #                           n_points, mode='linear', align_corners=False)
-        self.data = np.stack(list(iio.get_reader('karman-vortex.gif', mode='I')))
-        print(self.data.shape)
-        self.data = np.dot(self.data[..., :3], [0.2989, 0.5870, 0.1140])
-        print(self.data.shape)
-
-        self.data = ((self.data[:, :123, :] ** 2 + self.data[:, 123:246, :] ** 2) ** 0.5)
-        print(self.data.shape)
-        self.data = torch.tensor(self.data, dtype=torch.float32)
-        self.data = F.interpolate(self.data[None, None, :, :], [n_points, 40, 200], mode='trilinear',
-                                  align_corners=False)[0, 0].permute(1, 2, 0)
+        x = np.load('karman_snapshots.npz')['snapshots']
+        # x = np.concatenate([x, x], axis=2)
+        self.data = F.interpolate(torch.tensor(x, dtype=torch.float32),
+                                  n_points, mode='linear', align_corners=False)
+        # self.data = np.stack(list(iio.get_reader('karman-vortex.gif', mode='I')))
+        # # print(self.data.shape)
+        # self.data = np.dot(self.data[..., :3], [0.2989, 0.5870, 0.1140])
+        # # print(self.data.shape)
+        #
+        # self.data = ((self.data[:, :123, :] ** 2 + self.data[:, 123:246, :] ** 2) ** 0.5)
+        # # print(self.data.shape)
+        # self.data = torch.tensor(self.data, dtype=torch.float32)
+        # self.data = F.interpolate(self.data[None, None, :, :], [n_points, 40, 200], mode='trilinear',
+        #                           align_corners=False)[0, 0].permute(1, 2, 0)
         self.data = (self.data - self.data.mean()) / self.data.std()
 
-        print(self.data.shape)
+        # print(self.data.shape)
 
 
         self.init_dim = self.data.shape[:2]

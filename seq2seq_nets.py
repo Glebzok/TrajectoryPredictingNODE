@@ -54,7 +54,7 @@ class ConvNet(nn.Module):
 
 
 class UNetLikeConvNet(nn.Module):
-    def __init__(self, input_dim, output_dim, min_channels, n_layers, act='ReLU'):
+    def __init__(self, input_dim, output_dim, min_channels, n_layers, act='ReLU', always_decrease_n_ch=False):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -66,13 +66,19 @@ class UNetLikeConvNet(nn.Module):
 
         self.down = nn.ModuleList([])
         n_channels = self.min_channels
+        self.down_ch = [n_channels]
         for _ in range(self.n_layers):
-            self.down.append(Down(n_channels, 2 * n_channels, act))
-            n_channels = 2 * n_channels
+            if always_decrease_n_ch:
+                self.down.append(Down(n_channels, n_channels // 2, act))
+                n_channels = n_channels // 2
+            else:
+                self.down.append(Down(n_channels, 2 * n_channels, act))
+                n_channels = 2 * n_channels
+            self.down_ch.append(n_channels)
 
         self.up = nn.ModuleList([])
-        for _ in range(self.n_layers):
-            self.up.append(Up(n_channels, n_channels // 2, act))
+        for _, down_ch in zip(range(self.n_layers), self.down_ch[-2::-1]):
+            self.up.append(Up(n_channels, n_channels // 2 + down_ch, n_channels // 2, act))
             n_channels = n_channels // 2
 
         self.outc = OutConv(n_channels, self.output_dim)

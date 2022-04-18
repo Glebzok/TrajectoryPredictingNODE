@@ -21,10 +21,10 @@ class DoubleConv(nn.Module):
         self.double_conv = nn.Sequential(
             nn.Conv1d(in_channels, mid_channels, kernel_size=3, padding=1),
             nn.BatchNorm1d(mid_channels),
-            act_class(inplace=True),
+            act_class(),
             nn.Conv1d(mid_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm1d(out_channels),
-            act_class(inplace=True)
+            act_class()
         )
 
     def forward(self, x):
@@ -46,10 +46,10 @@ class Down(nn.Module):
 
 class Up(nn.Module):
     """Upscaling then double conv"""
-    def __init__(self, in_channels, out_channels, act):
+    def __init__(self, pre_in_channels, post_in_channels, out_channels, act):
         super().__init__()
-        self.up = nn.ConvTranspose1d(in_channels, in_channels // 2, kernel_size=2, stride=2)
-        self.conv = DoubleConv(in_channels, out_channels, act)
+        self.up = nn.ConvTranspose1d(pre_in_channels, pre_in_channels // 2, kernel_size=2, stride=2)
+        self.conv = DoubleConv(post_in_channels, out_channels, act)
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
