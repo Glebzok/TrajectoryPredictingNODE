@@ -1,7 +1,7 @@
 import torch
 
 from pointwise_nets import LinearNet, FCNet, AlgebraicNet, PointwiseTransformerNet, PointwisePermformerNet
-from seq2seq_nets import UNetLikeConvNet, Seq2SeqTransformerNet
+from seq2seq_nets import UNetLikeConvNet, Seq2SeqTransformerNet, ShrinkingResNet
 
 
 class SimpleLatentSpaceDecoder(LinearNet):
@@ -35,6 +35,16 @@ class UNetLikeConvLatentSpaceDecoder(UNetLikeConvNet):
     def __init__(self, latent_dim, signal_dim, min_channels, n_layers, act='ReLU', always_decrease_n_ch=False):
         super().__init__(input_dim=latent_dim, output_dim=signal_dim,
                          min_channels=min_channels, n_layers=n_layers, act=act, always_decrease_n_ch=always_decrease_n_ch)
+
+    def forward(self, z):
+        z = z.T[None, :, :] # (1, latent_dim, T)
+        y = super().forward(z).permute(0, 2, 1)[0] # (1, signal_dim, T)
+        return y
+
+
+class ShrinkingResLatentSpaceDecoder(ShrinkingResNet):
+    def __init__(self, latent_dim, signal_dim, n_layers):
+        super().__init__(input_dim=latent_dim, output_dim=signal_dim, n_layers=n_layers)
 
     def forward(self, z):
         z = z.T[None, :, :] # (1, latent_dim, T)

@@ -16,17 +16,24 @@ class LinearNet(nn.Module):
 
 
 class FCNet(nn.Module):
-    def __init__(self, input_dim, output_dim, n_layers, hidden_dim):
+    @staticmethod
+    def _get_linear(input_dim, output_dim, normalized):
+        if normalized:
+            return nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim, output_dim))
+        else:
+            return nn.Linear(input_dim, output_dim)
+
+    def __init__(self, input_dim, output_dim, n_layers, hidden_dim, normalized=False):
         super().__init__()
         if n_layers == 1:
-            self.layers = nn.ModuleList([nn.Linear(input_dim, output_dim)])
+            self.layers = nn.ModuleList([self._get_linear(input_dim, output_dim, normalized)])
         elif n_layers == 2:
-            self.layers = nn.ModuleList([nn.Linear(input_dim, hidden_dim),
-                                         nn.Linear(hidden_dim, output_dim)])
+            self.layers = nn.ModuleList([self._get_linear(input_dim, hidden_dim, normalized),
+                                         self._get_linear(hidden_dim, output_dim, normalized)])
         else:
-            self.layers = nn.ModuleList([nn.Linear(input_dim, hidden_dim)] \
-                                        + [nn.Linear(hidden_dim, hidden_dim) for _ in range(n_layers - 2)] \
-                                        + [nn.Linear(hidden_dim, output_dim)])
+            self.layers = nn.ModuleList([self._get_linear(input_dim, hidden_dim, normalized)] \
+                                        + [self._get_linear(hidden_dim, hidden_dim, normalized) for _ in range(n_layers - 2)] \
+                                        + [self._get_linear(hidden_dim, output_dim, normalized)])
 
     def forward(self, x):
         for layer in self.layers[:-1]:

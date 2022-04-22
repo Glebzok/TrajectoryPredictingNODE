@@ -119,6 +119,35 @@ class Seq2SeqTransformerNet(nn.Module):
 
         return x
 
+
+class ShrinkingResNet(nn.Module):
+    def __init__(self, input_dim, output_dim, n_layers):
+        super().__init__()
+        shrinking_factor = 0 if n_layers == 1 else (output_dim / input_dim) ** (1 / (n_layers))
+        self.conv_layers = nn.ModuleList([nn.Conv1d(int(input_dim * shrinking_factor ** i), int(input_dim * shrinking_factor ** (i+1)), kernel_size=3, padding=1)
+                                         for i in range(n_layers - 1)]
+                                         +
+                                         [nn.Conv1d(int(input_dim * shrinking_factor ** (n_layers - 1)), output_dim, kernel_size=3, padding=1)])
+        self.res_layers = nn.ModuleList([nn.Conv1d(int(input_dim * shrinking_factor ** i), int(input_dim * shrinking_factor ** (i+1)), kernel_size=1)
+                                        for i in range(n_layers - 1)]
+                                        +
+                                        [nn.Conv1d(int(input_dim * shrinking_factor ** (n_layers - 1)), output_dim, kernel_size=1)])
+
+
+    def forward(self, x):
+        for conv_layer, res_layer in zip(self.conv_layers[:-1], self.res_layers[:-1]):
+            out = conv_layer(x)
+            out = nn.Tanh()(out)
+            x = res_layer(x)
+            x += out
+
+        out = self.conv_layers[-1](x)
+        x = self.res_layers[-1](x)
+        x += out
+
+        return x
+
+
 # class RoFormerNet(nn.Module):
 #     def __init__(self, input_dim, output_dim, n_layers, nhead, dim_feedforward, dropout, activation):
 #         super().__init__()

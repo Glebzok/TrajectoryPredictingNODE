@@ -217,7 +217,15 @@ class SingleTrajectoryTrainer:
         self.shooting = self.shooting.to(device)
         self.shooting.rhs.decoder = self.shooting.decoder
         _ = self.shooting(t_train, y_train)
-        self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=0)
+        # self.optimizer = torch.optim.Adam(self.shooting.parameters(), lr=self.config['lr'], weight_decay=0)
+        self.optimizer = torch.optim.Adam([{'params': self.shooting.decoder.parameters(), 'weight_decay': 0},
+                                           {'params': self.shooting.shooting_vars, 'weight_decay': 0},
+                                           {'params': self.shooting.rhs.linear.parameters(), 'weight_decay': 0}] \
+                                          + (
+                                              [{'params' : self.shooting.rhs.controller.parameters(), 'weight_decay': 0}]
+                                              if hasattr(self.shooting.rhs, 'controller')
+                                              else []
+                                          ), lr=self.config['lr'])
         # self.optimizer = torch.optim.LBFGS(self.shooting.parameters(), lr=self.config['lr'], tolerance_change=1e-30)
         # self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.99)
 

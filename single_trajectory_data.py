@@ -112,9 +112,9 @@ class Trajectory():
                                                           np.zeros_like(y_test).reshape([*self.init_dim, -1]),
                                                           y_test_inference.reshape([*self.init_dim, -1])])
 
-        log_video = log_video[:, :, :, None].transpose([2, 3, 0, 1])
+        log_video = np.repeat(log_video[:, :, :, None], 3, axis=3).transpose([2, 3, 0, 1])
         log_video = ((log_video - log_video.min()) / (log_video.max() - log_video.min()) * 255.).astype('uint8')
-        log_video = wandb.Video(log_video, fps=12)
+        log_video = wandb.Video(log_video, fps=12, format='mp4')
 
         return log_video
 
@@ -157,21 +157,23 @@ class Trajectory():
 
         return shooting_image, inference_image
 
-    def log_prediction_results(self, model, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test, y_test):
-        y_inference, z_inference = model.inference(torch.cat([t_train, t_test]), y_train)  # (signal_dim, T), (latent_dim, T)
+    def log_prediction_results(self, model, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test,
+                               y_test):
+        y_inference, z_inference = model.inference(torch.cat([t_train, t_test]),
+                                                   y_train)  # (signal_dim, T), (latent_dim, T)
         y_train_inference = y_inference[:, :t_train.shape[0]]
         y_test_inference = y_inference[:, t_train.shape[0]:]
         z_train_inference = z_inference[:, :t_train.shape[0]]
         z_test_inference = z_inference[:, t_train.shape[0]:]
 
         t_train, y_clean_train, y_train, z_pred, y_pred, y_train_inference, t_test, y_clean_test, y_test, \
-            y_test_inference, z_train_inference, z_test_inference = \
-                t_train.cpu().numpy(), y_clean_train.cpu().numpy(), y_train.cpu().numpy(),\
-                z_pred.detach().cpu().numpy(), y_pred.detach().cpu().numpy(), \
-                y_train_inference.detach().cpu().numpy(), t_test.cpu().numpy(),\
-                y_clean_test.cpu().numpy(), y_test.cpu().numpy(),\
-                y_test_inference.detach().cpu().numpy(),\
-                z_train_inference.detach().cpu().numpy(), z_test_inference.detach().cpu().numpy()
+        y_test_inference, z_train_inference, z_test_inference = \
+            t_train.cpu().numpy(), y_clean_train.cpu().numpy(), y_train.cpu().numpy(), \
+            z_pred.detach().cpu().numpy(), y_pred.detach().cpu().numpy(), \
+            y_train_inference.detach().cpu().numpy(), t_test.cpu().numpy(), \
+            y_clean_test.cpu().numpy(), y_test.cpu().numpy(), \
+            y_test_inference.detach().cpu().numpy(), \
+            z_train_inference.detach().cpu().numpy(), z_test_inference.detach().cpu().numpy()
 
         signals = \
             {'true': {'t_train': t_train,
@@ -210,7 +212,7 @@ class Trajectory():
         shooting_latent_trajectories, inference_latent_trajectories = \
             self.log_latent_trajectories(t_train, z_pred, t_test, z_train_inference, z_test_inference)
 
-        return log_table, log_video, log_image, spectrum_table,\
+        return log_table, log_video, log_image, spectrum_table, \
                shooting_latent_trajectories, inference_latent_trajectories, signals
 
 
@@ -223,7 +225,7 @@ class SinTrajectory(Trajectory):
 
     def __call__(self):
         t = torch.linspace(self.t0, self.T, self.n_points)
-        y_clean = self.signal_amp * torch.sin(t).view(1, -1) # y_clean (signal_dim, T)
+        y_clean = self.signal_amp * torch.sin(t).view(1, -1)  # y_clean (signal_dim, T)
         y = self.generate_visible_trajectory(y_clean)
 
         return t, y_clean, y
@@ -251,7 +253,7 @@ class SpiralTrajectory(Trajectory):
         t = torch.linspace(self.t0, self.T, self.n_points)
         # t = torch.logspace(0, log(self.T + 1), self.n_points, base=e) - 1
         y0 = torch.tensor([1., 0.]).view(1, -1) * self.signal_amp
-        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0) # (#visible_dims, T)
+        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
         y = self.generate_visible_trajectory(y_clean)
 
         # t = torch.log(t + 1) / log(self.T + 1) * self.T
@@ -284,7 +286,7 @@ class LorenzTrajectory(Trajectory):
         t = torch.linspace(self.t0, self.T, self.n_points)
         y0 = self.signal_amp * torch.tensor([1., 1., 1.]).view(1, 3)
 
-        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0) # (#visible_dims, T)
+        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
         y = self.generate_visible_trajectory(y_clean)
 
         return t, y_clean, y
@@ -387,24 +389,23 @@ class FluidFlowTrajectory(Trajectory):
 class KarmanVortexStreet(Trajectory):
     def __init__(self, n_points=402, noise_std=0.):
         super().__init__(t0=0, T=10., n_points=n_points, noise_std=noise_std, signal_amp=1)
-        x = np.load('karman_snapshots.npz')['snapshots']
+        # x = np.load('karman_snapshots.npz')['snapshots']
         # x = np.concatenate([x, x], axis=2)
-        self.data = F.interpolate(torch.tensor(x, dtype=torch.float32),
-                                  n_points, mode='linear', align_corners=False)
-        # self.data = np.stack(list(iio.get_reader('karman-vortex.gif', mode='I')))
+        # self.data = F.interpolate(torch.tensor(x, dtype=torch.float32),
+        #                           n_points, mode='linear', align_corners=False)
+        self.data = np.stack(list(iio.get_reader('karman-vortex.gif', mode='I')))
         # # print(self.data.shape)
-        # self.data = np.dot(self.data[..., :3], [0.2989, 0.5870, 0.1140])
+        self.data = np.dot(self.data[..., :3], [0.2989, 0.5870, 0.1140])
         # # print(self.data.shape)
         #
-        # self.data = ((self.data[:, :123, :] ** 2 + self.data[:, 123:246, :] ** 2) ** 0.5)
+        self.data = ((self.data[:, :123, :] ** 2 + self.data[:, 123:246, :] ** 2) ** 0.5)
         # # print(self.data.shape)
-        # self.data = torch.tensor(self.data, dtype=torch.float32)
-        # self.data = F.interpolate(self.data[None, None, :, :], [n_points, 40, 200], mode='trilinear',
-        #                           align_corners=False)[0, 0].permute(1, 2, 0)
+        self.data = torch.tensor(self.data, dtype=torch.float32)
+        self.data = F.interpolate(self.data[None, None, :, :], [n_points, 40, 200], mode='trilinear',
+                                  align_corners=False)[0, 0].permute(1, 2, 0)
         self.data = (self.data - self.data.mean()) / self.data.std()
 
         # print(self.data.shape)
-
 
         self.init_dim = self.data.shape[:2]
 

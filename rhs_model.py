@@ -105,7 +105,7 @@ class SimpleRHS(nn.Module):
         self.system_dim = system_dim
         # self.linear = nn.utils.parametrizations.spectral_norm(nn.Linear(in_features=system_dim, out_features=system_dim, bias=False))
         # self.linear = nn.Linear(in_features=system_dim, out_features=system_dim, bias=False)
-        self.linear = StableLinearV3(n=system_dim, use_random_projection_init=True)
+        self.linear = StableLinear(n=system_dim, use_random_projection_init=True)
         # self.linear.weight.data *= 3
         # nn.utils.parametrize.register_parametrization(self.linear, 'weight', SpectralShift())
 
@@ -138,12 +138,12 @@ class FCRHS(FCNet):
 
 
 class ControlledLinearRHS(nn.Module):
-    def __init__(self, latent_dim, signal_dim, decoder, n_layers, hidden_dim):
+    def __init__(self, latent_dim, signal_dim, decoder, n_layers, hidden_dim, normalized_controller):
         super().__init__()
         self.system_dim = latent_dim
-        self.linear = StableLinear(n=latent_dim)
+        self.linear = StableLinear(n=latent_dim, use_random_projection_init=True)
         self.controller = FCNet(input_dim=signal_dim, output_dim=latent_dim,
-                                n_layers=n_layers, hidden_dim=hidden_dim)
+                                n_layers=n_layers, hidden_dim=hidden_dim, normalized=normalized_controller)
 
         self.decoder = decoder
 
