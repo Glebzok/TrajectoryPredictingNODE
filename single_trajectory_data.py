@@ -25,10 +25,12 @@ class Trajectory():
         self.signal_dim = None
         self.visible_dims = None
 
-    def generate_visible_trajectory(self, y_clean):
+    def generate_visible_trajectory(self, y_clean, t):
         # y_clean (signal_dim, T)
         y = y_clean + torch.randn_like(y_clean) * self.noise_std
-        return y
+        t = t / t.max()
+        self.T = 1.
+        return y, t
 
     def __call__(self):
         raise NotImplementedError()
@@ -226,7 +228,7 @@ class SinTrajectory(Trajectory):
     def __call__(self):
         t = torch.linspace(self.t0, self.T, self.n_points)
         y_clean = self.signal_amp * torch.sin(t).view(1, -1)  # y_clean (signal_dim, T)
-        y = self.generate_visible_trajectory(y_clean)
+        y, t = self.generate_visible_trajectory(y_clean, t)
 
         return t, y_clean, y
 
@@ -254,7 +256,7 @@ class SpiralTrajectory(Trajectory):
         # t = torch.logspace(0, log(self.T + 1), self.n_points, base=e) - 1
         y0 = torch.tensor([1., 0.]).view(1, -1) * self.signal_amp
         y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
-        y = self.generate_visible_trajectory(y_clean)
+        y, t = self.generate_visible_trajectory(y_clean, t)
 
         # t = torch.log(t + 1) / log(self.T + 1) * self.T
 
@@ -287,7 +289,7 @@ class LorenzTrajectory(Trajectory):
         y0 = self.signal_amp * torch.tensor([1., 1., 1.]).view(1, 3)
 
         y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
-        y = self.generate_visible_trajectory(y_clean)
+        y, t = self.generate_visible_trajectory(y_clean, t)
 
         return t, y_clean, y
 
@@ -303,9 +305,10 @@ class CascadedTanksTrajectory(Trajectory):
         with open('./cascaded_tanks.pkl', 'rb') as f:
             data = pkl.load(f)
 
-        y, t = torch.tensor(data['y'], dtype=torch.float32), torch.tensor(data['t'], dtype=torch.float32)
+        y_clean, t = torch.tensor(data['y'], dtype=torch.float32), torch.tensor(data['t'], dtype=torch.float32)
+        y, t = self.generate_visible_trajectory(y_clean, t)
 
-        return t, y, y
+        return t, y_clean, y
 
 
 class PendulumTrajectory(Trajectory):
@@ -342,7 +345,7 @@ class PendulumTrajectory(Trajectory):
         y0 = torch.tensor([3.12, 0.]).view(1, -1)
 
         y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
-        y = self.generate_visible_trajectory(y_clean)
+        y, t = self.generate_visible_trajectory(y_clean, t)
 
         return t, y_clean, y
 
@@ -381,7 +384,7 @@ class FluidFlowTrajectory(Trajectory):
         y0 = torch.tensor([-.1, -.2, .05]).view(1, -1)
 
         y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
-        y = self.generate_visible_trajectory(y_clean)
+        y, t = self.generate_visible_trajectory(y_clean, t)
 
         return t, y_clean, y
 
@@ -415,7 +418,7 @@ class KarmanVortexStreet(Trajectory):
     def __call__(self):
         t = torch.linspace(self.t0, self.T, self.n_points)
         y_clean = self.data.reshape(self.signal_dim, -1)
-        y = self.generate_visible_trajectory(y_clean)
+        y, t = self.generate_visible_trajectory(y_clean, t)
 
         return t, y_clean, y
 
@@ -438,6 +441,6 @@ class ToyDataset(Trajectory):
         xgrid, tgrid = torch.meshgrid(x, t)
 
         y_clean = (f1(xgrid, tgrid) + f2(xgrid, tgrid)).real
-        y = self.generate_visible_trajectory(y_clean)
+        y, t = self.generate_visible_trajectory(y_clean, t)
 
         return t, y_clean, y

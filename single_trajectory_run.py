@@ -24,13 +24,13 @@ np.random.seed(seed)
 random.seed(seed)
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
     DATASET = 'SPIRAL'
     # experiment_name = 'SPIRAL div 3 points (expt) multiple shooting 5 vars even more steps, 4T, 1e-4 lr 1e-3 wd, linear rhs, 5 layer 0.3 dropout (add linear layers) new permformer decoder, 50 latent dim, 1e-3 incr, norm init W, log t (uniform grid)'
     # experiment_name = 'test weight scaling 2'
     # experiment_name = 'FluidFlow (expt) multiple shooting 5 vars even more steps, 8T, 1e-4 lr 1e-3 wd, linear rhs, 5 layer fc decoder, 50 latent dim, 1e-3 incr, no norm W, log-norm penalty 1e2 lambda'
     # experiment_name = 'test new logging'
-    experiment_name = 'Karman 0.7 402 points multiple shooting 40 normal vars, 1e-4 lr, normalized controlled rhs, 5 layer fc decoder, 100 latent dim, 1e-5 incr, stablev1 random proj A'
+    experiment_name = 'Karman normalized t 0.7 402 points multiple shooting 10 normal vars, 1e-4 lr, linear rhs, 5 layer fc decoder, 100 latent dim, 1e-5 incr, stablev1 random proj A'
     # experiment_name = 'test'
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # device = 'cpu'
@@ -54,11 +54,11 @@ if __name__ == '__main__':
     # data_params = {'T_train': 12}
     # data_params = {'T_train': 25}
     # data_params = {'T_train': 20}
-    data_params = {'T_train': trajectory.T * 0.7}
+    data_params = {'T_train': 0.7}
 
     # shooting = LatentSingleShooting(signal_dim=1, latent_dim=20)
     # shooting = SingleShooting(len(trajectory.visible_dims))
-    shooting = LatentMultipleShooting(signal_dim=trajectory.signal_dim, latent_dim=100, T=trajectory.T, n_shooting_vars=40)
+    shooting = LatentMultipleShooting(signal_dim=trajectory.signal_dim, latent_dim=100, T=trajectory.T, n_shooting_vars=10)
     # shooting = LatentMultipleInterShooting(signal_dim=2, latent_dim=15, n_shooting_vars=41)
     # shooting = VariationalLatentMultipleShooting(signal_dim=2, latent_dim=100, n_shooting_vars=20, n_samples=256)
 

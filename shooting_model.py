@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from torchdiffeq import odeint as odeint
+# from torchdiffeq import odeint as odeint
 # from torchdiffeq import odeint_adjoint as odeint
-# from linear_ode_int import matrix_exp_odeint as odeint
+from linear_ode_int import matrix_exp_odeint as odeint
 
 from rhs_model import SimpleRHS, FCRHS, ControlledLinearRHS
 from decoder_model import SimpleLatentSpaceDecoder, FCLatentSpaceDecoder, AlgebraicLatentSpaceDecoder,\
@@ -47,10 +47,10 @@ class LatentSingleShooting(nn.Module):
         #                                              dim_feedforward=256, dropout=0., activation='relu')
         # self.decoder = PermformerLatentSpaceDecoder(latent_dim=latent_dim, signal_dim=signal_dim, n_layers=5, nhead=8,
         #                                             dim_feedforward=200, dropout=0., activation='relu')
-        # self.rhs = SimpleRHS(system_dim=latent_dim, T=T, use_hippo_init=False)
+        self.rhs = SimpleRHS(system_dim=latent_dim, T=T, use_hippo_init=False)
         # self.rhs = FCRHS(system_dim=latent_dim, n_layers=5, hidden_dim=50)
-        self.rhs = ControlledLinearRHS(latent_dim=latent_dim, signal_dim=signal_dim,
-                                       decoder=self.decoder, n_layers=5, hidden_dim=50, normalized_controller=False)
+        # self.rhs = ControlledLinearRHS(latent_dim=latent_dim, signal_dim=signal_dim,
+        #                                decoder=self.decoder, n_layers=5, hidden_dim=50, normalized_controller=False)
 
     def forward(self, t, y):
         # y : (signal_dim, T)
