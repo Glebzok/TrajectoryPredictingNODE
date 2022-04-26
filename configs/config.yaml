@@ -1,14 +1,14 @@
 environment:
   SEED: 42
   device: 'cuda'
-  GPU_id: '0'
+  GPU_id: '2'
 
 trainer:
   module: src.train
   type: Trainer
   config:
-    train_frac: 0.5
-    n_iter: 5 #512000
+    train_frac: 0.7
+    n_iter: 512000
     logging_interval: 500
     lambda1: 1e-9
     lambda2: 1e-9
@@ -17,23 +17,23 @@ trainer:
     shooting_lambda_step: 1e-5
 
     project_name: 'NODE model'
-    experiment_name: 'test'
+    experiment_name: 'reproduction'
     notes: ''
     tags: []
-    mode: 'disabled'
+    mode: 'online'
 
     log_dir: '../../../logs'
 
 trajectory:
   module: src.data.data
 
-  type: SinTrajectory
-  config:
-    noise_std: 0.
-    t0: 0
-    T: 25.13274
-    n_points: 402
-    signal_amp: 1.
+#  type: SinTrajectory
+#  config:
+#    noise_std: 0.
+#    t0: 0
+#    T: 25.13274
+#    n_points: 402
+#    signal_amp: 1.
 
 #  type: SpiralTrajectory
 #  config:
@@ -88,11 +88,11 @@ trajectory:
 #    n_points: 402
 #    data_path: ../../../data/karman_snapshots.npz
 
-#  type: LongKarmanVortexStreetTrajectory
-#  config:
-#    noise_std: 0.
-#    n_points: 402
-#    data_path: ../../../data/karman-vortex.gif
+  type: LongKarmanVortexStreetTrajectory
+  config:
+    noise_std: 0.
+    n_points: 402
+    data_path: ../../../data/karman-vortex.gif
 
 #  type: ToyTrajectory
 #  config:
@@ -108,7 +108,7 @@ optimizer:
 
 model:
   config:
-    n_shooting_vars: 20
+    n_shooting_vars: 10
     latent_dim: 100
   encoder:
     module: src.models.encoder_model
@@ -164,15 +164,15 @@ model:
     decoder_net:
       module: src.models.nets.decoder_nets
 
-      type: SimpleLatentSpaceDecoder
-      config: {}
+#      type: SimpleLatentSpaceDecoder
+#      config: {}
 
-#      type: FCLatentSpaceDecoder
-#      config:
-#        n_layers: 5
-#        hidden_dim: 50
-#        activation: 'tanh'
-#        normalized: False
+      type: FCLatentSpaceDecoder
+      config:
+        n_layers: 5
+        hidden_dim: 50
+        activation: 'tanh'
+        normalized: False
 #
 #      type: UNetLikeConvLatentSpaceDecoder
 #      config:
