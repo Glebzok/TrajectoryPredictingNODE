@@ -2,15 +2,14 @@ import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 
 import torch
-import torch.nn as nn
 import wandb
 
 import numpy as np
 import random
 
-from single_trajectory_data import LorenzTrajectory, SinTrajectory, SpiralTrajectory, CascadedTanksTrajectory, PendulumTrajectory, FluidFlowTrajectory, KarmanVortexStreet, ToyDataset
-from train import SingleTrajectoryTrainer
-from shooting_model import SingleShooting, LatentSingleShooting, LatentMultipleShooting, LatentMultipleInterShooting, VariationalLatentMultipleShooting
+from src.data.single_trajectory_data import KarmanVortexStreet
+from src.train import SingleTrajectoryTrainer
+from src.models.shooting_model import LatentMultipleShooting
 
 seed = 42
 os.environ['PYTHONHASHSEED'] = str(seed)

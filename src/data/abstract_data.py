@@ -1,20 +1,14 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torchdiffeq import odeint_adjoint as odeint
 
-import numpy as np
 import pandas as pd
-from math import pi, log, e
+import numpy as np
 import matplotlib.pyplot as plt
-
-import pickle as pkl
-import imageio as iio
 
 import wandb
 
 
-class Trajectory():
+class AbstractTrajectory():
     def __init__(self, t0, T, n_points, noise_std, signal_amp, **kwargs):
         self.t0 = t0
         self.T = T
@@ -25,12 +19,9 @@ class Trajectory():
         self.signal_dim = None
         self.visible_dims = None
 
-    def generate_visible_trajectory(self, y_clean, t):
-        # y_clean (signal_dim, T)
+    def generate_visible_trajectory(self, y_clean):
         y = y_clean + torch.randn_like(y_clean) * self.noise_std
-        t = t / t.max()
-        self.T = 1.
-        return y, t
+        return y
 
     def __call__(self):
         raise NotImplementedError()
@@ -38,6 +29,13 @@ class Trajectory():
     def log_prediction_table(self,
                              t_train, y_clean_train, y_train, y_pred, y_train_inference,
                              t_test, y_clean_test, y_test, y_test_inference):
+        # t_train : (T_train,)
+        # t_test : (T_test,
+        # y_clean_train / y_train : (signal_dim, T_train)
+        # y_clean_test / y_test : (signal_dim, T_test)
+        # y_pred : (signal_dim, T_train)
+        # y_train_inference: (signal_dim, T_train)
+        # y_test_inference: (signal_dim, T_test)
         train_log_table = pd.DataFrame(np.concatenate([t_train.reshape(-1, 1),
                                                        y_clean_train.T,
                                                        y_train.T,
@@ -76,8 +74,8 @@ class Trajectory():
         log_table = wandb.Table(dataframe=log_table)
         return log_table
 
-    def log_prediction_image(self,
-                             y_clean_train, y_train, y_pred, y_train_inference,
+    @staticmethod
+    def log_prediction_image(y_clean_train, y_train, y_pred, y_train_inference,
                              y_clean_test, y_test, y_test_inference):
 
         train_len, test_len = y_train.shape[-1], y_test.shape[-1]
@@ -120,14 +118,17 @@ class Trajectory():
 
         return log_video
 
-    def log_spectrum(self, model):
-        eigv = np.linalg.eigvals(model.rhs.linear.weight.detach().cpu().numpy())
+    @staticmethod
+    def log_spectrum(model):
+        eigv = np.linalg.eigvals(model.shooting_model.rhs_net.dynamics.weight.detach().cpu().numpy())
 
         spectrum_table = wandb.Table(data=[[x, y] for (x, y) in zip(eigv.real, eigv.imag)], columns=["Re", "Im"])
 
         return spectrum_table
 
-    def log_latent_trajectories(self, t_train, z_pred, t_test, z_train_inference, z_test_inference):
+    @staticmethod
+    def log_latent_trajectories(t_train, z_pred, t_test, z_train_inference, z_test_inference):
+        z_pred = z_pred.transpose(2, 0, 1)
         points_per_shooting_var, n_shooting_vars, latent_dim = z_pred.shape
         points_per_shooting_var -= 1
 
@@ -159,14 +160,24 @@ class Trajectory():
 
         return shooting_image, inference_image
 
+    @staticmethod
+    def calc_val_losses(y_train, y_test, y_train_inference, y_test_inference):
+        train_inference_loss = F.mse_loss(y_train, y_train_inference)
+        test_inference_loss = F.mse_loss(y_test, y_test_inference)
+
+        return {'Train Inference Reconstruction loss': train_inference_loss.item(),
+                'Test Inference Reconstruction loss': test_inference_loss.item()}
+
     def log_prediction_results(self, model, t_train, y_clean_train, y_train, z_pred, y_pred, t_test, y_clean_test,
                                y_test):
-        y_inference, z_inference = model.inference(torch.cat([t_train, t_test]),
-                                                   y_train)  # (signal_dim, T), (latent_dim, T)
+        y_inference, _, z_inference = model.inference(torch.cat([t_train, t_test]),
+                                                      y_train)  # (signal_dim, T), (latent_dim, T)
         y_train_inference = y_inference[:, :t_train.shape[0]]
         y_test_inference = y_inference[:, t_train.shape[0]:]
         z_train_inference = z_inference[:, :t_train.shape[0]]
         z_test_inference = z_inference[:, t_train.shape[0]:]
+
+        val_losses = self.calc_val_losses(y_train, y_test, y_train_inference, y_test_inference)
 
         t_train, y_clean_train, y_train, z_pred, y_pred, y_train_inference, t_test, y_clean_test, y_test, \
         y_test_inference, z_train_inference, z_test_inference = \
@@ -215,232 +226,4 @@ class Trajectory():
             self.log_latent_trajectories(t_train, z_pred, t_test, z_train_inference, z_test_inference)
 
         return log_table, log_video, log_image, spectrum_table, \
-               shooting_latent_trajectories, inference_latent_trajectories, signals
-
-
-class SinTrajectory(Trajectory):
-    def __init__(self, noise_std, t0=0, T=8 * pi, n_points=800, signal_amp=1):
-        super().__init__(t0=t0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=signal_amp)
-
-        self.signal_dim = 1
-        self.visible_dims = [0]
-
-    def __call__(self):
-        t = torch.linspace(self.t0, self.T, self.n_points)
-        y_clean = self.signal_amp * torch.sin(t).view(1, -1)  # y_clean (signal_dim, T)
-        y, t = self.generate_visible_trajectory(y_clean, t)
-
-        return t, y_clean, y
-
-
-class SpiralTrajectory(Trajectory):
-    class RHS(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.A = torch.tensor([[-0.1, 2.0],
-                                   [-2.0, -0.1]], dtype=torch.float32)
-
-        def forward(self, t, x):
-            return (self.A @ (x.transpose(1, 0) ** 3)).transpose(1, 0)
-
-    def __init__(self, noise_std, visible_dims=(0, 1), t0=0, T=150, n_points=5000, signal_amp=2):
-        super().__init__(t0=t0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=signal_amp)
-
-        self.signal_dim = 2
-        self.visible_dims = list(visible_dims)
-
-        self.rhs = self.RHS()
-
-    def __call__(self):
-        t = torch.linspace(self.t0, self.T, self.n_points)
-        # t = torch.logspace(0, log(self.T + 1), self.n_points, base=e) - 1
-        y0 = torch.tensor([1., 0.]).view(1, -1) * self.signal_amp
-        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
-        y, t = self.generate_visible_trajectory(y_clean, t)
-
-        # t = torch.log(t + 1) / log(self.T + 1) * self.T
-
-        return t, y_clean, y
-
-
-class LorenzTrajectory(Trajectory):
-    class RHS(nn.Module):
-        def __init__(self, sigma, rho, beta):
-            super().__init__()
-            self.sigma = sigma
-            self.rho = rho
-            self.beta = beta
-
-        def forward(self, t, state):
-            x, y, z = state.transpose(1, 0)
-            return torch.vstack([self.sigma * (y - x), x * (self.rho - z) - y, x * y - self.beta * z]).transpose(1, 0)
-
-    def __init__(self, noise_std, visible_dims=(0, 1, 2), t0=0, T=50, n_points=4000, signal_amp=10, sigma=10.0,
-                 rho=28.0, beta=8.0 / 3.0):
-        super().__init__(t0=t0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=signal_amp)
-
-        self.signal_dim = 3
-        self.visible_dims = list(visible_dims)
-
-        self.rhs = self.RHS(sigma, rho, beta)
-
-    def __call__(self):
-        t = torch.linspace(self.t0, self.T, self.n_points)
-        y0 = self.signal_amp * torch.tensor([1., 1., 1.]).view(1, 3)
-
-        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
-        y, t = self.generate_visible_trajectory(y_clean, t)
-
-        return t, y_clean, y
-
-
-class CascadedTanksTrajectory(Trajectory):
-    def __init__(self):
-        super().__init__(t0=0, T=12, n_points=802, noise_std=0, signal_amp=10)
-
-        self.signal_dim = 2
-        self.visible_dims = list([0, 1])
-
-    def __call__(self):
-        with open('./cascaded_tanks.pkl', 'rb') as f:
-            data = pkl.load(f)
-
-        y_clean, t = torch.tensor(data['y'], dtype=torch.float32), torch.tensor(data['t'], dtype=torch.float32)
-        y, t = self.generate_visible_trajectory(y_clean, t)
-
-        return t, y_clean, y
-
-
-class PendulumTrajectory(Trajectory):
-    def __init__(self, visible_dims=(0, 1), T=100, n_points=802, noise_std=0., m=5., l=10., lambd=0.05):
-        super().__init__(t0=0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=1)
-        self.m = m
-        self.l = l
-        self.lambd = lambd
-
-        self.rhs = self.RHS(m, l, lambd)
-
-        self.signal_dim = 2
-        self.visible_dims = list(visible_dims)
-
-    class RHS(nn.Module):
-        def __init__(self, m, l, lambd):
-            super().__init__()
-
-            self.l = l
-            self.lambd = lambd
-            self.m = m
-
-            self.A = torch.tensor([[0., 1.],
-                                   [-10. / l, -lambd / m]], dtype=torch.float32)
-
-        def forward(self, t, x):
-            res = torch.tensor([[x[:, 1],
-                                 - 10. / self.l * torch.sin(x[:, 0]) - self.lambd / self.m * x[:, 1]]],
-                               dtype=torch.float32)
-            return res
-
-    def __call__(self):
-        t = torch.linspace(self.t0, self.T, self.n_points)
-        y0 = torch.tensor([3.12, 0.]).view(1, -1)
-
-        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
-        y, t = self.generate_visible_trajectory(y_clean, t)
-
-        return t, y_clean, y
-
-
-class FluidFlowTrajectory(Trajectory):
-    def __init__(self, visible_dims=(0, 1, 2), T=50, n_points=802, noise_std=0., mu=0.1, omega=1, A=-0.1, lam=10):
-        super().__init__(t0=0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=1)
-
-        self.mu = mu
-        self.omega = omega
-        self.A = A
-        self.lam = lam
-
-        self.rhs = self.RHS(mu=self.mu, omega=self.omega, A=self.A, lam=self.lam)
-
-        self.signal_dim = 2
-        self.visible_dims = list(visible_dims)
-
-    class RHS(nn.Module):
-        def __init__(self, mu, omega, A, lam):
-            super().__init__()
-
-            self.mu = mu
-            self.omega = omega
-            self.A = A
-            self.lam = lam
-
-        def forward(self, t, x):
-            res = torch.tensor([[self.mu * x[:, 0] - self.omega * x[:, 1] + self.A * x[:, 0] * x[:, 2],
-                                 self.omega * x[:, 0] + self.mu * x[:, 1] + self.A * x[:, 1] * x[:, 2],
-                                 - self.lam * (x[:, 2] - x[:, 0] ** 2 - x[:, 1] ** 2)]], dtype=torch.float32)
-            return res
-
-    def __call__(self):
-        t = torch.linspace(self.t0, self.T, self.n_points)
-        y0 = torch.tensor([-.1, -.2, .05]).view(1, -1)
-
-        y_clean = odeint(self.rhs, y0, t)[:, 0, self.visible_dims].permute(1, 0)  # (#visible_dims, T)
-        y, t = self.generate_visible_trajectory(y_clean, t)
-
-        return t, y_clean, y
-
-
-class KarmanVortexStreet(Trajectory):
-    def __init__(self, n_points=402, noise_std=0.):
-        super().__init__(t0=0, T=10., n_points=n_points, noise_std=noise_std, signal_amp=1)
-        # x = np.load('karman_snapshots.npz')['snapshots']
-        # x = np.concatenate([x, x], axis=2)
-        # self.data = F.interpolate(torch.tensor(x, dtype=torch.float32),
-        #                           n_points, mode='linear', align_corners=False)
-        self.data = np.stack(list(iio.get_reader('karman-vortex.gif', mode='I')))
-        # # print(self.data.shape)
-        self.data = np.dot(self.data[..., :3], [0.2989, 0.5870, 0.1140])
-        # # print(self.data.shape)
-        #
-        self.data = ((self.data[:, :123, :] ** 2 + self.data[:, 123:246, :] ** 2) ** 0.5)
-        # # print(self.data.shape)
-        self.data = torch.tensor(self.data, dtype=torch.float32)
-        self.data = F.interpolate(self.data[None, None, :, :], [n_points, 40, 200], mode='trilinear',
-                                  align_corners=False)[0, 0].permute(1, 2, 0)
-        self.data = (self.data - self.data.mean()) / self.data.std()
-
-        # print(self.data.shape)
-
-        self.init_dim = self.data.shape[:2]
-
-        self.signal_dim = self.init_dim[0] * self.init_dim[1]
-        self.visible_dims = list(range(self.signal_dim))
-
-    def __call__(self):
-        t = torch.linspace(self.t0, self.T, self.n_points)
-        y_clean = self.data.reshape(self.signal_dim, -1)
-        y, t = self.generate_visible_trajectory(y_clean, t)
-
-        return t, y_clean, y
-
-
-class ToyDataset(Trajectory):
-    def __init__(self, T=4 * np.pi, n_points=402, noise_std=0.):
-        super().__init__(t0=0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=1)
-
-        self.init_dim = None
-        self.signal_dim = 128
-        self.visible_dims = list(range(self.signal_dim))
-
-    def __call__(self):
-        f1 = lambda x, t: 1. / torch.cosh(x + 3) * torch.exp(2.3j * t)
-        f2 = lambda x, t: 2. / torch.cosh(x) * torch.tanh(x) * torch.exp(2.8j * t)
-
-        x = torch.linspace(-5, 5, self.signal_dim)
-        t = torch.linspace(0, self.T, self.n_points)
-
-        xgrid, tgrid = torch.meshgrid(x, t)
-
-        y_clean = (f1(xgrid, tgrid) + f2(xgrid, tgrid)).real
-        y, t = self.generate_visible_trajectory(y_clean, t)
-
-        return t, y_clean, y
+               shooting_latent_trajectories, inference_latent_trajectories, signals, val_losses

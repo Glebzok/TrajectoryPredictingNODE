@@ -1,0 +1,251 @@
+environment:
+  SEED: 42
+  device: 'cuda'
+  GPU_id: '0'
+
+trainer:
+  module: src.train
+  type: Trainer
+  config:
+    train_frac: 0.5
+    n_iter: 5 #512000
+    logging_interval: 500
+    lambda1: 1e-9
+    lambda2: 1e-9
+    lambda3: 1e-9
+    lambda4: 0
+    shooting_lambda_step: 1e-5
+
+    project_name: 'NODE model'
+    experiment_name: 'test'
+    notes: ''
+    tags: []
+    mode: 'disabled'
+
+    log_dir: '../../../logs'
+
+trajectory:
+  module: src.data.data
+
+  type: SinTrajectory
+  config:
+    noise_std: 0.
+    t0: 0
+    T: 25.13274
+    n_points: 402
+    signal_amp: 1.
+
+#  type: SpiralTrajectory
+#  config:
+#    noise_std: 0.
+#    visible_dims: (0, 1)
+#    t0: 0
+#    T: 150.
+#    n_points: 402
+#    signal_amp: 2.
+
+#  type: LorenzTrajectory
+#  config:
+#    noise_std: 0.
+#    visible_dims: (0, 1, 2)
+#    t0: 0
+#    T: 50.
+#    n_points: 402
+#    signal_amp: 10.
+#    sigma: 10.
+#    rho: 28.
+#    beta: 2.6666
+
+#  type: CascadedTanksTrajectory
+#  config:
+#    noise_std: 0.
+#    data_path: ../../../data/cascaded_tanks.pkl
+
+#  type: PendulumTrajectory
+#  config:
+#    noise_std: 0.
+#    visible_dims: (0, 1)
+#    T: 100.
+#    n_points: 402
+#    m: 5.
+#    l: 10.
+#    lambd: 0.05
+
+#  type: FluidFlowTrajectory
+#  config:
+#    noise_std: 0.
+#    visible_dims: (0, 1, 2)
+#    T: 50.
+#    n_points: 402
+#    mu: 0.1
+#    omega: 1
+#    A: -0.1
+#    lam: 10
+
+#  type: ShortKarmanVortexStreetTrajectory
+#  config:
+#    noise_std: 0.
+#    n_points: 402
+#    data_path: ../../../data/karman_snapshots.npz
+
+#  type: LongKarmanVortexStreetTrajectory
+#  config:
+#    noise_std: 0.
+#    n_points: 402
+#    data_path: ../../../data/karman-vortex.gif
+
+#  type: ToyTrajectory
+#  config:
+#    noise_std: 0.
+#    T: 12.5663
+#    n_points: 402
+
+optimizer:
+  module: torch.optim
+  type: Adam
+  config:
+    lr: 1e-4
+
+model:
+  config:
+    n_shooting_vars: 20
+    latent_dim: 100
+  encoder:
+    module: src.models.encoder_model
+
+#    type: TrivialEncoder
+#    config:
+#      weight_decay: 0
+
+    type: DirectOptimizationEncoder
+    config:
+      weight_decay: 0
+
+#    type: NontrivialEncoder
+#    config:
+#      weight_decay: 0
+#      encoder_net:
+#        module: src.models.nets.encoder_nets
+#
+#        type: SimpleLatentSpaceEncoder
+#        config: {}
+#
+##        type: ConvLatentSpaceEncoder
+##        config:
+##          n_layers: 5
+##          hidden_channels: 50
+##          activation: 'tanh'
+#
+##        type: UNetLikeLatentSpaceEncoder
+##        config:
+##          init_channels: 10
+##          n_layers: 5
+##          activation: 'relu'
+#
+##        type: TransformerLatentSpaceEncoder
+##        config:
+##          n_layers: 5
+##          nhead: 8
+##          dim_feedforward: 256
+##          dropout: 0.
+##          activation: 'relu'
+
+
+  decoder:
+    module: src.models.decoder_model
+
+#    type: TrivialDecoder
+#    config:
+#      weight_decay: 0
+
+    type: NontrivialDecoder
+    config:
+      weight_decay: 0
+    decoder_net:
+      module: src.models.nets.decoder_nets
+
+      type: SimpleLatentSpaceDecoder
+      config: {}
+
+#      type: FCLatentSpaceDecoder
+#      config:
+#        n_layers: 5
+#        hidden_dim: 50
+#        activation: 'tanh'
+#        normalized: False
+#
+#      type: UNetLikeConvLatentSpaceDecoder
+#      config:
+#        init_channels: 10
+#        n_layers: 5
+#        act: 'tanh'
+#        always_decrease_n_ch: False
+#
+#      type: ShrinkingResLatentSpaceDecoder
+#      config:
+#        n_layers: 5
+#
+#      type: Seq2SeqTransformerLatentSpaceDecoder
+#      config:
+#        n_layers: 5
+#        nhead: 8
+#        dim_feedforward: 256
+#        dropout: 0.
+#        activation: 'relu'
+
+  shooting:
+    module: src.models.shooting_model
+
+    type: DeterministicShooting
+    config: {}
+
+#    type: VariationalShooting
+#    config:
+#      n_samples: 64
+
+    linear:
+      module: src.models.nets.rhs_nets
+
+      type: StableLinear
+      config:
+        use_random_projection_init: True
+
+#      type: StableDHLinear
+#      config:
+#        use_random_projection_init: True
+#        eps: 1e-7
+
+    rhs_net:
+      module: src.models.nets.rhs_nets
+
+      type: SimpleRHS
+      odeint:
+        module: src.utils.linear_ode_int
+        type: matrix_exp_odeint
+      config:
+        dynamics_weight_decay: 0.
+
+#      type: FCRHS
+#      odeint:
+#        module: torchdiffeq
+#        type: odeint
+#      config:
+#        n_layers: 5
+#        hidden_dim: 50
+#        activation: 'tanh'
+#        normalized: False
+#
+#        dynamics_weight_decay: 0.
+
+#      type: ControlledLinearRHS
+#      odeint:
+#        module: torchdiffeq
+#        type: odeint
+#      config:
+#        n_layers: 5
+#        hidden_dim: 50
+#        controller_activation: 'tanh'
+#        normalized_controller: False
+#
+#        dynamics_weight_decay: 0.
+#        controller_weight_decay: 0.

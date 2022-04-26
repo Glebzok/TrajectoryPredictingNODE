@@ -2,6 +2,7 @@ imageio
 matplotlib
 moviepy
 numpy
+omegaconf
 pandas
 # plotly
 torch

@@ -1,8 +1,7 @@
+import torch
 import torch.nn as nn
-from model_parts import DoubleConv, Up, Down, OutConv, \
-    PositionalEncoding
-# from transformers import RoFormerConfig
-# from transformers.models.roformer.modeling_roformer import RoFormerEncoder
+import torch.nn.functional as F
+from src.models.backbones.model_parts import DoubleConv, Up, Down, OutConv, PositionalEncoding
 
 
 class SingleLayerConvNet(nn.Module):
@@ -12,13 +11,16 @@ class SingleLayerConvNet(nn.Module):
                               kernel_size=3, padding=1, bias=False)
 
     def forward(self, x):
-        x = self.conv(x)
+        # x: (bs, input_dim, T)
+        x = self.conv(x)  # (bs, output_dim, T)
         return x
 
 
 class ConvNet(nn.Module):
-    def __init__(self, input_dim, output_dim, n_layers, hidden_channels):
+    def __init__(self, input_dim, output_dim, n_layers, hidden_channels, activation):
         super().__init__()
+        self.activation = activation
+
         if n_layers == 1:
             self.conv_layers = nn.ModuleList([nn.Conv1d(input_dim, output_dim, kernel_size=3, padding=1)])
             self.res_layers = nn.ModuleList([nn.Conv1d(input_dim, output_dim, kernel_size=1)])
@@ -40,33 +42,38 @@ class ConvNet(nn.Module):
                                             + [nn.Conv1d(hidden_channels, output_dim, kernel_size=1)])
 
     def forward(self, x):
+        # x: (bs, input_dim, T)
         for conv_layer, res_layer in zip(self.conv_layers[:-1], self.res_layers[:-1]):
             out = conv_layer(x)
             x = res_layer(x)
             x += out
-            x = nn.Tanh()(x)
+            if self.activation == 'tanh':
+                x = torch.tanh(x)
+            else:
+                x = torch.relu(x)
 
         out = self.conv_layers[-1](x)
         x = self.res_layers[-1](x)
         x += out
 
-        return x
+        return x  # x: (bs, output_dim, T)
 
 
 class UNetLikeConvNet(nn.Module):
-    def __init__(self, input_dim, output_dim, min_channels, n_layers, act='ReLU', always_decrease_n_ch=False):
+    def __init__(self, input_dim, output_dim, init_channels, n_layers, act, always_decrease_n_ch):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.min_channels = min_channels
+        self.init_channels = init_channels
         self.n_layers = n_layers
         self.act = act
 
-        self.inc = DoubleConv(input_dim, min_channels, act)
-
+        self.inc = DoubleConv(input_dim, init_channels, act)
         self.down = nn.ModuleList([])
-        n_channels = self.min_channels
+
+        n_channels = self.init_channels
         self.down_ch = [n_channels]
+
         for _ in range(self.n_layers):
             if always_decrease_n_ch:
                 self.down.append(Down(n_channels, n_channels // 2, act))
@@ -84,6 +91,7 @@ class UNetLikeConvNet(nn.Module):
         self.outc = OutConv(n_channels, self.output_dim)
 
     def forward(self, x):
+        # x: (bs, input_dim, T)
         down_out = [self.inc(x)]
         for layer in self.down:
             down_out.append(layer(down_out[-1]))
@@ -95,7 +103,7 @@ class UNetLikeConvNet(nn.Module):
 
         x = self.outc(x)
 
-        return x
+        return x  # x: (bs, output_dim, T)
 
 
 class Seq2SeqTransformerNet(nn.Module):
@@ -112,32 +120,44 @@ class Seq2SeqTransformerNet(nn.Module):
         self.outl = nn.Linear(dim_feedforward, output_dim)
 
     def forward(self, x):
+        # x: (bs, input_dim, T)
         x = self.inl(x.permute(0, 2, 1)).permute(1, 0, 2)
         x = self.pos_encoder(x).permute(1, 0, 2)
         x = self.transformer(x)
         x = self.outl(x).permute(0, 2, 1)
 
-        return x
+        return x  # x: (bs, output_dim, T)
 
 
 class ShrinkingResNet(nn.Module):
-    def __init__(self, input_dim, output_dim, n_layers):
+    def __init__(self, input_dim, output_dim, n_layers, activation='tanh'):
         super().__init__()
-        shrinking_factor = 0 if n_layers == 1 else (output_dim / input_dim) ** (1 / (n_layers))
-        self.conv_layers = nn.ModuleList([nn.Conv1d(int(input_dim * shrinking_factor ** i), int(input_dim * shrinking_factor ** (i+1)), kernel_size=3, padding=1)
-                                         for i in range(n_layers - 1)]
-                                         +
-                                         [nn.Conv1d(int(input_dim * shrinking_factor ** (n_layers - 1)), output_dim, kernel_size=3, padding=1)])
-        self.res_layers = nn.ModuleList([nn.Conv1d(int(input_dim * shrinking_factor ** i), int(input_dim * shrinking_factor ** (i+1)), kernel_size=1)
-                                        for i in range(n_layers - 1)]
-                                        +
-                                        [nn.Conv1d(int(input_dim * shrinking_factor ** (n_layers - 1)), output_dim, kernel_size=1)])
+        self.activation = activation
 
+        shrinking_factor = 0 if n_layers == 1 else (output_dim / input_dim) ** (1 / n_layers)
+        self.conv_layers = nn.ModuleList([nn.Conv1d(int(input_dim * shrinking_factor ** i),
+                                                    int(input_dim * shrinking_factor ** (i + 1)), kernel_size=3,
+                                                    padding=1)
+                                          for i in range(n_layers - 1)]
+                                         +
+                                         [nn.Conv1d(int(input_dim * shrinking_factor ** (n_layers - 1)), output_dim,
+                                                    kernel_size=3, padding=1)])
+        self.res_layers = nn.ModuleList([nn.Conv1d(int(input_dim * shrinking_factor ** i),
+                                                   int(input_dim * shrinking_factor ** (i + 1)), kernel_size=1)
+                                         for i in range(n_layers - 1)]
+                                        +
+                                        [nn.Conv1d(int(input_dim * shrinking_factor ** (n_layers - 1)), output_dim,
+                                                   kernel_size=1)])
 
     def forward(self, x):
+        # x: (bs, input_dim, T)
         for conv_layer, res_layer in zip(self.conv_layers[:-1], self.res_layers[:-1]):
             out = conv_layer(x)
-            out = nn.Tanh()(out)
+            if self.activation == 'tanh':
+                out = torch.tanh(out)
+            else:
+                out = torch.relu(out)
+
             x = res_layer(x)
             x += out
 
@@ -145,25 +165,4 @@ class ShrinkingResNet(nn.Module):
         x = self.res_layers[-1](x)
         x += out
 
-        return x
-
-
-# class RoFormerNet(nn.Module):
-#     def __init__(self, input_dim, output_dim, n_layers, nhead, dim_feedforward, dropout, activation):
-#         super().__init__()
-#
-#         config = RoFormerConfig(vocab_size=1, embedding_size=input_dim, hidden_size=dim_feedforward,
-#                                 num_hidden_layers=n_layers,
-#                                 num_attention_heads=nhead, intermediate_size=dim_feedforward, hidden_act=activation,
-#                                 hidden_dropout_prob=dropout,
-#                                 attention_probs_dropout_prob=dropout, max_position_embeddings=200)
-#
-#         self.encoder = RoFormerEncoder(config)
-#         self.inl = nn.Linear(input_dim, dim_feedforward)
-#         self.outl = nn.Linear(dim_feedforward, output_dim)
-#
-#     def forward(self, x):
-#         x = self.inl(x.permute(0, 2, 1))
-#         x = self.encoder(x)[0]
-#         x = self.outl(x).permute(0, 2, 1)
-#         return x
+        return x  # x: (bs, output_dim, T)

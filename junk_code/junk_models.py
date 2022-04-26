@@ -5,46 +5,8 @@ import torch.nn.functional as F
 import copy
 
 
-class LinearNet(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super().__init__()
-        self.linear = nn.Linear(in_features=input_dim, out_features=output_dim, bias=False)
-
-    def forward(self, x):
-        x = self.linear(x)
-        return x
-
-
-class FCNet(nn.Module):
-    @staticmethod
-    def _get_linear(input_dim, output_dim, normalized):
-        if normalized:
-            return nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim, output_dim))
-        else:
-            return nn.Linear(input_dim, output_dim)
-
-    def __init__(self, input_dim, output_dim, n_layers, hidden_dim, normalized=False):
-        super().__init__()
-        if n_layers == 1:
-            self.layers = nn.ModuleList([self._get_linear(input_dim, output_dim, normalized)])
-        elif n_layers == 2:
-            self.layers = nn.ModuleList([self._get_linear(input_dim, hidden_dim, normalized),
-                                         self._get_linear(hidden_dim, output_dim, normalized)])
-        else:
-            self.layers = nn.ModuleList([self._get_linear(input_dim, hidden_dim, normalized)] \
-                                        + [self._get_linear(hidden_dim, hidden_dim, normalized) for _ in range(n_layers - 2)] \
-                                        + [self._get_linear(hidden_dim, output_dim, normalized)])
-
-    def forward(self, x):
-        for layer in self.layers[:-1]:
-            x = layer(x)
-            x = nn.Tanh()(x)
-        x = self.layers[-1](x)
-        return x
-
-
 class InnerProduct(nn.Module):
-    def __init__(self, in_features):
+    def __init__(self):
         super().__init__()
 
     def forward(self, x):
@@ -187,3 +149,23 @@ class PointwisePermformerNet(nn.Module):
         x = x.view(bs, n_vars, -1)  # bs , n_vars, signal_dim
 
         return x
+
+# class RoFormerNet(nn.Module):
+#     def __init__(self, input_dim, output_dim, n_layers, nhead, dim_feedforward, dropout, activation):
+#         super().__init__()
+#
+#         config = RoFormerConfig(vocab_size=1, embedding_size=input_dim, hidden_size=dim_feedforward,
+#                                 num_hidden_layers=n_layers,
+#                                 num_attention_heads=nhead, intermediate_size=dim_feedforward, hidden_act=activation,
+#                                 hidden_dropout_prob=dropout,
+#                                 attention_probs_dropout_prob=dropout, max_position_embeddings=200)
+#
+#         self.encoder = RoFormerEncoder(config)
+#         self.inl = nn.Linear(input_dim, dim_feedforward)
+#         self.outl = nn.Linear(dim_feedforward, output_dim)
+#
+#     def forward(self, x):
+#         x = self.inl(x.permute(0, 2, 1))
+#         x = self.encoder(x)[0]
+#         x = self.outl(x).permute(0, 2, 1)
+#         return x

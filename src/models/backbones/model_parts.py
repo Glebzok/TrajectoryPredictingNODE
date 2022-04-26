@@ -9,9 +9,9 @@ class DoubleConv(nn.Module):
     """(convolution => [BN] => ACT) * 2"""
     def __init__(self, in_channels, out_channels, act, mid_channels=None):
         super().__init__()
-        if act == 'ReLU':
+        if act == 'relu':
             act_class = nn.ReLU
-        elif act == 'Tanh':
+        elif act == 'tanh':
             act_class = nn.Tanh
         else:
             raise ValueError('Wrong activation type')
@@ -58,6 +58,7 @@ class Up(nn.Module):
         x1 = F.pad(x1, [diffY // 2, diffY - diffY // 2])
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
+
 
 class OutConv(nn.Module):
     def __init__(self, in_channels, out_channels):
