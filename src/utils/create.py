@@ -40,7 +40,8 @@ def create_encoder(encoder_config: DictConfig, shooting_config:DictConfig,
         encoder = encoder_type(n_shooting_vars=n_shooting_vars, encoder_net=encoder_net)
 
     else:
-        encoder = encoder_type(n_shooting_vars=n_shooting_vars, latent_dim=latent_dim)
+        encoder = encoder_type(n_shooting_vars=n_shooting_vars, latent_dim=latent_dim,
+                               init_distribution=encoder_config.config.init_distribution)
 
     return encoder
 

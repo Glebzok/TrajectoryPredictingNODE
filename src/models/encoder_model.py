@@ -13,9 +13,13 @@ class TrivialEncoder(nn.Module):
 
 
 class DirectOptimizationEncoder(nn.Module):
-    def __init__(self, n_shooting_vars, latent_dim, **kwargs):
+    def __init__(self, n_shooting_vars, latent_dim, init_distribution, **kwargs):
         super(DirectOptimizationEncoder, self).__init__()
-        self.shooting_vars = nn.Parameter(torch.randn(n_shooting_vars, latent_dim))  # (n_shooting_vars, latent_dim)
+        if init_distribution == 'normal':
+            self.shooting_vars = torch.randn(n_shooting_vars, latent_dim)  # N(0, 1)
+        else:
+            self.shooting_vars = (torch.rand(n_shooting_vars, latent_dim) - 0.5) * 2. # U(-1, 1)
+        self.shooting_vars = nn.Parameter(self.shooting_vars)  # (n_shooting_vars, latent_dim)
 
     def forward(self, y):
         # y : (signal_dim, T)
