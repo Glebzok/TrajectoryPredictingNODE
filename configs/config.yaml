@@ -17,7 +17,7 @@ trainer:
     shooting_lambda_step: 1e-5
 
     project_name: 'NODE model'
-    experiment_name: 'reproduction'
+    experiment_name: 'reproduction with control'
     notes: ''
     tags: []
     mode: 'online'
@@ -119,6 +119,7 @@ model:
 
     type: DirectOptimizationEncoder
     config:
+      init_distribution: 'normal'
       weight_decay: 0
 
 #    type: NontrivialEncoder
@@ -218,12 +219,12 @@ model:
     rhs_net:
       module: src.models.nets.rhs_nets
 
-      type: SimpleRHS
-      odeint:
-        module: src.utils.linear_ode_int
-        type: matrix_exp_odeint
-      config:
-        dynamics_weight_decay: 0.
+#      type: SimpleRHS
+#      odeint:
+#        module: src.utils.linear_ode_int
+#        type: matrix_exp_odeint
+#      config:
+#        dynamics_weight_decay: 0.
 
 #      type: FCRHS
 #      odeint:
@@ -237,15 +238,15 @@ model:
 #
 #        dynamics_weight_decay: 0.
 
-#      type: ControlledLinearRHS
-#      odeint:
-#        module: torchdiffeq
-#        type: odeint
-#      config:
-#        n_layers: 5
-#        hidden_dim: 50
-#        controller_activation: 'tanh'
-#        normalized_controller: False
-#
-#        dynamics_weight_decay: 0.
-#        controller_weight_decay: 0.
+      type: ControlledLinearRHS
+      odeint:
+        module: torchdiffeq
+        type: odeint
+      config:
+        n_layers: 5
+        hidden_dim: 50
+        controller_activation: 'tanh'
+        normalized_controller: False
+
+        dynamics_weight_decay: 0.
+        controller_weight_decay: 0.

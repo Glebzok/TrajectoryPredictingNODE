@@ -107,5 +107,9 @@ class ControlledLinearRHS(nn.Module):
         self.decoder = decoder
 
     def forward(self, t, x):
-        x = self.dynamics(x) + self.controller(self.decoder(x))
+        init_shape = x.shape
+        y = self.controller(self.decoder(x.view(1, -1, init_shape[-1]).permute(0, 2, 1)).permute(0, 2, 1))
+        if len(init_shape) == 2:
+            y = y[0]
+        x = self.dynamics(x) + y
         return x
