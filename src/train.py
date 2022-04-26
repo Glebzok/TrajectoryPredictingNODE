@@ -209,3 +209,5 @@ class Trainer(object):
                     self.save_model(itr, signals_dict)
 
                 self.node_model.train()
+
+            self.optimizer.step()
