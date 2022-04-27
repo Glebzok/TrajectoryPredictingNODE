@@ -54,7 +54,7 @@ def create_decoder_model(decoder_config: DictConfig, latent_dim, signal_dim):
         decoder_net_type = get_attr_from_module(decoder_config.decoder_net.module, decoder_config.decoder_net.type)
         decoder_net = decoder_net_type(latent_dim=latent_dim, signal_dim=signal_dim,
                                        **decoder_config.decoder_net.config)
-        decoder_model = decoder_model_type(decoder_net)
+        decoder_model = decoder_model_type(decoder_net, **decoder_config.config)
 
     return decoder_model
 
