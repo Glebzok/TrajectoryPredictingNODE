@@ -24,6 +24,9 @@ trainer:
 
     log_dir: '../../../logs'
 
+    scaling: 'total'
+    normalize_t: False
+
 trajectory:
   module: src.data.data
 
@@ -162,6 +165,7 @@ model:
     type: NontrivialDecoder
     config:
       weight_decay: 0
+      dropout: 0.3
     decoder_net:
       module: src.models.nets.decoder_nets
 

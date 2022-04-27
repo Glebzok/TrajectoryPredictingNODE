@@ -12,7 +12,8 @@ class Trainer(object):
                  train_frac, n_iter, logging_interval,
                  lambda1, lambda2, lambda3, lambda4, shooting_lambda_step,
                  device, experiment_name, project_name, notes, tags, config, mode,
-                 log_dir):
+                 log_dir,
+                 scaling, normalize_t):
         self.trajectory = trajectory
         self.node_model = node_model
         self.optimizer = optimizer
@@ -37,12 +38,17 @@ class Trainer(object):
 
         self.log_dir = log_dir
 
+        self.scaling = scaling
+        self.normalize_t = normalize_t
 
-    @staticmethod
-    def scale(y_train, y_test):
+    def scale(self, y_train, y_test):
         # y: (signal_dim, T)
-        mean = y_train.mean(dim=1, keepdims=True)
-        std = y_train.std(dim=1, keepdims=True)
+        if self.scaling == 'axiswise':
+            mean = y_train.mean(dim=1, keepdims=True)
+            std = y_train.std(dim=1, keepdims=True)
+        else:
+            mean = y_train.mean()
+            std = y_train.std()
 
         y_train = (y_train - mean) / std
         y_test = (y_test - mean) / std
@@ -53,9 +59,10 @@ class Trainer(object):
         # t: (T,)
         # y_clean: (signal_dim, T)
         # y: (signal_dim, T)
+        N = ((t / t.max()) <= train_frac).sum()
 
-        t = t / t.max()
-        N = (t <= train_frac).sum()
+        if self.normalize_t:
+            t = t / t.max()
 
         t_train, t_test = t[:N], t[N:]
         y_clean_train, y_clean_test = y_clean[:, :N], y_clean[:, N:]
