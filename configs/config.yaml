@@ -210,11 +210,13 @@ model:
       type: StableLinear
       config:
         use_random_projection_init: True
+        norm: 10.
 
 #      type: StableDHLinear
 #      config:
 #        use_random_projection_init: True
 #        eps: 1e-7
+#        norm: 10
 
     rhs_net:
       module: src.models.nets.rhs_nets
