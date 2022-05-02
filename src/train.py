@@ -13,7 +13,7 @@ class Trainer(object):
                  lambda1, lambda2, lambda3, lambda4, shooting_lambda_step,
                  device, experiment_name, project_name, notes, tags, config, mode,
                  log_dir,
-                 scaling, normalize_t):
+                 scaling, normalize_t, normalize_rhs_loss):
         self.trajectory = trajectory
         self.node_model = node_model
         self.optimizer = optimizer
@@ -40,6 +40,7 @@ class Trainer(object):
 
         self.scaling = scaling
         self.normalize_t = normalize_t
+        self.normalize_rhs_loss = normalize_rhs_loss
 
     def scale(self, y_train, y_test):
         # y: (signal_dim, T)
@@ -111,6 +112,9 @@ class Trainer(object):
         if self.lambda3 > 0:
             shooting_rhs_loss = F.mse_loss(self.node_model.shooting_model.rhs_net(None, z_pred[:, 1:, :, 0]),
                                            self.node_model.shooting_model.rhs_net(None, z_pred[:, :-1, :, -1]))
+            if self.normalize_rhs_loss:
+                shooting_rhs_loss /= self.node_model.shooting_model.rhs_net.dynamics.norm
+
             loss += self.lambda3 * shooting_rhs_loss
             self.lambda3 += self.shooting_lambda_step
             losses['Shooting RHS loss'] = shooting_rhs_loss.item()
