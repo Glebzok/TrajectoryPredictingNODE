@@ -1,3 +1,8 @@
+hydra:
+  output_subdir: null
+  run:
+    dir: .
+
 environment:
   SEED: 42
   device: 'cuda'
@@ -17,35 +22,36 @@ trainer:
     shooting_lambda_step: 1e-5
 
     project_name: 'NODE model'
-    experiment_name: 'reproduce 40 sv linear without t normalization 10 A norm decoder 0.3 dropout'
+    experiment_name: 'Spiral 40 sv linear mixnet decoder 1e-7 wd 0.5 dropout scale t, 1000 linear norm'
     notes: ''
     tags: []
     mode: 'online'
 
-    log_dir: '../../../logs'
+    log_dir: './logs'
 
     scaling: 'total'
-    normalize_t: False
+    normalize_t: True
+    normalize_rhs_loss: True
 
 trajectory:
   module: src.data.data
 
 #  type: SinTrajectory
 #  config:
-#    noise_std: 0.
+#    noise_std: 0.1
 #    t0: 0
-#    T: 25.13274
-#    n_points: 402
+#    T: 50.2654
+#    n_points: 804
 #    signal_amp: 1.
 
-#  type: SpiralTrajectory
-#  config:
-#    noise_std: 0.
-#    visible_dims: (0, 1)
-#    t0: 0
-#    T: 150.
-#    n_points: 402
-#    signal_amp: 2.
+  type: SpiralTrajectory
+  config:
+    noise_std: 0.
+    visible_dims: [0, 1]
+    t0: 0
+    T: 150.
+    n_points: 402
+    signal_amp: 2.
 
 #  type: LorenzTrajectory
 #  config:
@@ -62,7 +68,7 @@ trajectory:
 #  type: CascadedTanksTrajectory
 #  config:
 #    noise_std: 0.
-#    data_path: ../../../data/cascaded_tanks.pkl
+#    data_path: ./data/cascaded_tanks.pkl
 
 #  type: PendulumTrajectory
 #  config:
@@ -89,19 +95,19 @@ trajectory:
 #  config:
 #    noise_std: 0.
 #    n_points: 402
-#    data_path: ../../../data/karman_snapshots.npz
+#    data_path: ./data/karman_snapshots.npz
 
-  type: LongKarmanVortexStreetTrajectory
-  config:
-    noise_std: 0.
-    n_points: 402
-    data_path: ../../../data/karman-vortex.gif
+#  type: LongKarmanVortexStreetTrajectory
+#  config:
+#    noise_std: 0.
+#    n_points: 402
+#    data_path: ./data/karman-vortex.gif
 
 #  type: ToyTrajectory
 #  config:
-#    noise_std: 0.
-#    T: 12.5663
-#    n_points: 402
+#    noise_std: 0.1
+#    T: 25.1327
+#    n_points: 803
 
 optimizer:
   module: torch.optim
@@ -164,20 +170,21 @@ model:
 
     type: NontrivialDecoder
     config:
-      weight_decay: 0
-      dropout: 0.3
+      weight_decay: 1e-7
+      dropout: 0.5
     decoder_net:
       module: src.models.nets.decoder_nets
 
 #      type: SimpleLatentSpaceDecoder
 #      config: {}
 
-      type: FCLatentSpaceDecoder
-      config:
-        n_layers: 5
-        hidden_dim: 50
-        activation: 'tanh'
-        normalized: False
+#      type: FCLatentSpaceDecoder
+#      config:
+#        n_layers: 5
+#        hidden_dim: 50
+#        activation: 'tanh'
+#        normalized: False
+#        dropouts: []
 #
 #      type: UNetLikeConvLatentSpaceDecoder
 #      config:
@@ -189,6 +196,15 @@ model:
 #      type: ShrinkingResLatentSpaceDecoder
 #      config:
 #        n_layers: 5
+
+      type: MixNetLatentSpaceDecoder
+      config:
+        n_layers: 5
+        hidden_dim: 50
+        activation: 'tanh'
+        normalized: False
+        dropouts: []
+        conv_index: 0
 #
 #      type: Seq2SeqTransformerLatentSpaceDecoder
 #      config:
@@ -214,7 +230,7 @@ model:
       type: StableLinear
       config:
         use_random_projection_init: True
-        norm: 10.
+        norm: 1000.
 
 #      type: StableDHLinear
 #      config:
