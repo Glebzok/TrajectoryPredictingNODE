@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from src.models.backbones.model_parts import DoubleConv, Up, Down, OutConv, PositionalEncoding
+from src.models.backbones.pointwise_nets import FCNet
 
 
 class SingleLayerConvNet(nn.Module):
@@ -166,3 +167,54 @@ class ShrinkingResNet(nn.Module):
         x += out
 
         return x  # x: (bs, output_dim, T)
+
+
+class MixNet(FCNet):
+    def __init__(self, input_dim, output_dim, n_layers, hidden_dim, activation, normalized, conv_index, dropouts=[]):
+        super().__init__(input_dim=input_dim, output_dim=output_dim, n_layers=n_layers,
+                         hidden_dim=hidden_dim, activation=activation, normalized=normalized, dropouts=dropouts)
+
+        self.conv_index = conv_index
+
+        if conv_index == 0:
+            self.conv = nn.Conv1d(in_channels=input_dim, out_channels=input_dim, kernel_size=3, padding=1)
+        elif conv_index == -1:
+            self.conv = nn.Conv1d(in_channels=output_dim, out_channels=output_dim, kernel_size=3, padding=1)
+        else:
+            self.conv = nn.Conv1d(in_channels=hidden_dim, out_channels=hidden_dim, kernel_size=3, padding=1)
+
+    def forward(self, x):
+        # x: (bs, input_dim, T)
+        if self.conv_index == 0:
+            x = self.conv(x)
+            x = x.permute(0, 2, 1)  #(bs, T, input_dim)
+            x = super().forward(x)  #(bs, T, output_dim)
+            x = x.permute(0, 2, 1)  #(bs, output_dim, T)
+
+        elif self.conv_index == -1:
+            x = x.permute(0, 2, 1)  # (bs, T, input_dim)
+            x = super().forward(x)  # (bs, T, output_dim)
+            x = x.permute(0, 2, 1)  # (bs, output_dim, T)
+            x = self.conv(x)  #(bs, output_dim, T)
+        else:
+            x = x.permute(0, 2, 1)  # (bs, T, input_dim)
+            for i, layer in enumerate(self.layers[:-1]):
+
+                if i == self.conv_index:
+                    x = x.permute(0, 2, 1)  # (bs, hidden_dim, T)
+                    x = self.conv(x)  # (bs, hidden_dim, T)
+                    x = x.permute(0, 2, 1)  # (bs, T, hidden_dim)
+
+                x = layer(x)
+                if self.activation == 'tanh':
+                    x = torch.tanh(x)
+                else:
+                    x = torch.relu(x)
+
+                if i < len(self.dropouts):
+                    x = self.dropouts[i](x)
+
+            x = self.layers[-1](x)
+            x = x.permute(0, 2, 1)  # (bs, output_dim, T)
+
+        return x

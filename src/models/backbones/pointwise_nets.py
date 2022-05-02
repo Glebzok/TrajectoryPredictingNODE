@@ -21,7 +21,7 @@ class FCNet(nn.Module):
         else:
             return nn.Linear(input_dim, output_dim)
 
-    def __init__(self, input_dim, output_dim, n_layers, hidden_dim, activation, normalized):
+    def __init__(self, input_dim, output_dim, n_layers, hidden_dim, activation, normalized, dropouts=[]):
         super().__init__()
         self.activation = activation
 
@@ -36,13 +36,19 @@ class FCNet(nn.Module):
                                            range(n_layers - 2)] \
                                         + [self._get_linear(hidden_dim, output_dim, normalized)])
 
+        self.dropouts = [nn.Dropout(p=dropout) for dropout in dropouts]
+
     def forward(self, x):
         # x: (bs, input_dim)
-        for layer in self.layers[:-1]:
+        for i, layer in enumerate(self.layers[:-1]):
             x = layer(x)
             if self.activation == 'tanh':
                 x = torch.tanh(x)
             else:
                 x = torch.relu(x)
+
+            if i < len(self.dropouts):
+                x = self.dropouts[i](x)
+
         x = self.layers[-1](x)
         return x  # x: (bs, output_dim)

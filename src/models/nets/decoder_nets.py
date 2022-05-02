@@ -1,5 +1,5 @@
 from src.models.backbones.pointwise_nets import LinearNet, FCNet
-from src.models.backbones.seq2seq_nets import UNetLikeConvNet, Seq2SeqTransformerNet, ShrinkingResNet
+from src.models.backbones.seq2seq_nets import UNetLikeConvNet, Seq2SeqTransformerNet, ShrinkingResNet, MixNet
 
 
 class SimpleLatentSpaceDecoder(LinearNet):
@@ -12,9 +12,9 @@ class SimpleLatentSpaceDecoder(LinearNet):
 
 
 class FCLatentSpaceDecoder(FCNet):
-    def __init__(self, latent_dim, signal_dim, n_layers, hidden_dim, activation, normalized):
+    def __init__(self, latent_dim, signal_dim, n_layers, hidden_dim, activation, normalized, dropouts):
         super().__init__(input_dim=latent_dim, output_dim=signal_dim, n_layers=n_layers, hidden_dim=hidden_dim,
-                         activation=activation, normalized=normalized)
+                         activation=activation, normalized=normalized, dropouts=dropouts)
 
     def forward(self, z):
         # z: (n_samples, latent_dim, T)
@@ -37,3 +37,10 @@ class Seq2SeqTransformerLatentSpaceDecoder(Seq2SeqTransformerNet):
     def __init__(self, latent_dim, signal_dim, n_layers, nhead, dim_feedforward, dropout, activation):
         super().__init__(input_dim=latent_dim, output_dim=signal_dim, n_layers=n_layers, nhead=nhead,
                          dim_feedforward=dim_feedforward, dropout=dropout, activation=activation)
+
+
+class MixNetLatentSpaceDecoder(MixNet):
+    def __init__(self, latent_dim, signal_dim, n_layers, hidden_dim, activation, normalized, conv_index, dropouts):
+        super().__init__(input_dim=latent_dim, output_dim=signal_dim, n_layers=n_layers,
+                         hidden_dim=hidden_dim, activation=activation, normalized=normalized,
+                         conv_index=conv_index, dropouts=dropouts)
