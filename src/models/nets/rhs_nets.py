@@ -6,18 +6,22 @@ from src.models.backbones.pointwise_nets import FCNet
 
 
 class StableLinear(nn.Module):
-    def __init__(self, n, use_random_projection_init, norm):
+    def __init__(self, n, use_random_projection_init, norm, skewsymmetricity_alpha=0):
         super().__init__()
         self.X = nn.parameter.Parameter(self.get_normalized_matrix(n))
         self.K = nn.parameter.Parameter(self.get_normalized_matrix(n))
 
         self.norm = norm
+        self.skewsymmetricity_alpha = skewsymmetricity_alpha
 
         if use_random_projection_init:
             self.init_xk_values(n=n)
 
     def init_xk_values(self, n):
         A = self.get_normalized_matrix(n) * self.norm
+        B = self.get_normalized_matrix(n) * self.norm
+        A = A * (1 - self.skewsymmetricity_alpha) + self.skewsymmetricity_alpha * (B - B.T)
+
         self.K.data = 0.5 * (A - A.T)
 
         L, U = torch.linalg.eigh(0.5 * (- A - A.T))
@@ -40,8 +44,9 @@ class StableLinear(nn.Module):
 
 
 class StableDHLinear(StableLinear):
-    def __init__(self, n, use_random_projection_init, eps, norm):
-        super().__init__(n=n, use_random_projection_init=use_random_projection_init, norm=norm)
+    def __init__(self, n, use_random_projection_init, eps, norm, skewsymmetricity_alpha=0):
+        super().__init__(n=n, use_random_projection_init=use_random_projection_init, norm=norm,
+                         skewsymmetricity_alpha=skewsymmetricity_alpha)
         self.eps = eps
         self.Y = nn.parameter.Parameter(self.get_normalized_matrix(n))
         self.z = nn.parameter.Parameter(self.get_normalized_vector(n))
