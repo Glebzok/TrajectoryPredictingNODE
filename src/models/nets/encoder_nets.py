@@ -1,4 +1,16 @@
+from src.models.backbones.pointwise_nets import FCNet
 from src.models.backbones.seq2seq_nets import SingleLayerConvNet, ConvNet, UNetLikeConvNet, Seq2SeqTransformerNet
+
+
+class FCLatentSpaceEncoder(FCNet):
+    def __init__(self, latent_dim, signal_dim, n_layers, hidden_dim, activation, normalized, dropouts=[]):
+        super().__init__(input_dim=signal_dim, output_dim=latent_dim,
+                         n_layers=n_layers, hidden_dim=hidden_dim, activation=activation,
+                         normalized=normalized, dropouts=dropouts)
+
+    def forward(self, x):
+        # x: (bs, input_dim, T)
+        return super().forward(x.permute(0, 2, 1)).permute(0, 2, 1)
 
 
 class SimpleLatentSpaceEncoder(SingleLayerConvNet):
