@@ -113,7 +113,7 @@ class Trainer(object):
             shooting_rhs_loss = F.mse_loss(self.node_model.shooting_model.rhs_net(None, z_pred[:, 1:, :, 0]),
                                            self.node_model.shooting_model.rhs_net(None, z_pred[:, :-1, :, -1]))
             if self.normalize_rhs_loss:
-                shooting_rhs_loss /= self.node_model.shooting_model.rhs_net.dynamics.norm
+                shooting_rhs_loss /= (self.node_model.shooting_model.rhs_net.dynamics.norm ** 2.)
 
             loss += self.lambda3 * shooting_rhs_loss
             self.lambda3 += self.shooting_lambda_step
