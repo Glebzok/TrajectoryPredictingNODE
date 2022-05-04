@@ -41,7 +41,7 @@ class VariationalShooting(DeterministicShooting):
 
         z0 = z0_mu[None, ...] \
              + torch.randn(self.n_samples, n_shooting_vars, latent_dim, device=z0.device) \
-             * torch.relu(z0_sigma[None, ...])  # (n_samples, n_shooting_vars, latent_dim)
+             * torch.exp(z0_sigma[None, ...])  # (n_samples, n_shooting_vars, latent_dim)
 
         z0 = z0.reshape(-1, latent_dim)  # (n_samples * n_shooting_vars, latent_dim)
         subsignal_length = (signal_length - 1) // n_shooting_vars + 1
