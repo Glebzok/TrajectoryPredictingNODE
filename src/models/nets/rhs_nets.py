@@ -101,12 +101,12 @@ class FCRHS(nn.Module):
 
 
 class ControlledLinearRHS(nn.Module):
-    def __init__(self, latent_dim, system_dim,
+    def __init__(self, signal_dim, system_dim,
                  decoder, linear,
                  n_layers, hidden_dim, normalized_controller, controller_activation, **kwargs):
         super().__init__()
-        self.system_dim = latent_dim
-        self.controller = FCNet(input_dim=system_dim, output_dim=latent_dim,
+        self.system_dim = system_dim
+        self.controller = FCNet(input_dim=signal_dim, output_dim=system_dim,
                                 n_layers=n_layers, hidden_dim=hidden_dim,
                                 activation=controller_activation, normalized=normalized_controller)
 

@@ -72,10 +72,10 @@ def create_shooting_model(shooting_config: DictConfig, latent_dim, signal_dim, d
         linear_type = get_attr_from_module(shooting_config.linear.module, shooting_config.linear.type)
         linear = linear_type(n=latent_dim, **shooting_config.linear.config)
 
-        rhs_net = rhs_net_type(latent_dim=latent_dim, system_dim=signal_dim, decoder=decoder, linear=linear,
+        rhs_net = rhs_net_type(signal_dim=signal_dim, system_dim=latent_dim, decoder=decoder, linear=linear,
                                **shooting_config.rhs_net.config)
     else:
-        rhs_net = rhs_net_type(latent_dim=latent_dim, system_dim=signal_dim, decoder=decoder,
+        rhs_net = rhs_net_type(signal_dim=signal_dim, system_dim=latent_dim, decoder=decoder,
                                **shooting_config.rhs_net.config)
 
     odeint = get_attr_from_module(shooting_config.rhs_net.odeint.module, shooting_config.rhs_net.odeint.type)
