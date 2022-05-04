@@ -221,7 +221,10 @@ class AbstractTrajectory():
             log_video = None
             log_image = None
 
-        spectrum_table = self.log_spectrum(model)
+        if hasattr(model.shooting_model.rhs_net.dynamics, 'weight'):
+            spectrum_table = self.log_spectrum(model)
+        else:
+            spectrum_table = None
         shooting_latent_trajectories, inference_latent_trajectories = \
             self.log_latent_trajectories(t_train, z_pred, t_test, z_train_inference, z_test_inference)
 
