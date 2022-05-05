@@ -12,19 +12,20 @@ trainer:
   module: src.train
   type: Trainer
   config:
-    train_frac: 0.7
+    train_frac: 0.5
     n_iter: 512000
     logging_interval: 500
-    lambda1: 1e-9
-    lambda2: 1e-9
-    lambda3: 1e-9
+    lambda1: 0
+    lambda2: 0
+    lambda3: 0
     lambda4: 0
-    shooting_lambda_step: 1e-5
+    shooting_lambda_step: 0
 
     project_name: 'NODE model'
-    experiment_name: 'Spiral 40 sv linear mixnet decoder 1e-7 wd 0.5 dropout scale t, 1000 linear norm'
+    experiment_name: 'sin 0.5 402 points normalized t, non-local encoder, 10 ld more layers unet'
     notes: ''
-    tags: []
+    tags: ['report', 'motivational', 'non-local encoder']
+#    tags: ['debug']
     mode: 'online'
 
     log_dir: './logs'
@@ -36,22 +37,24 @@ trainer:
 trajectory:
   module: src.data.data
 
-#  type: SinTrajectory
-#  config:
-#    noise_std: 0.1
-#    t0: 0
-#    T: 50.2654
-#    n_points: 804
-#    signal_amp: 1.
-
-  type: SpiralTrajectory
+  type: SinTrajectory
   config:
-    noise_std: 0.
-    visible_dims: [0, 1]
+    noise_std: 0
     t0: 0
-    T: 150.
+#    T: 50.2654
+    T: 25.1327
+#    n_points: 802
     n_points: 402
-    signal_amp: 2.
+    signal_amp: 1.
+
+#  type: SpiralTrajectory
+#  config:
+#    noise_std: 0.
+#    visible_dims: [0, 1]
+#    t0: 0
+#    T: 150.
+#    n_points: 802
+#    signal_amp: 2.
 
 #  type: LorenzTrajectory
 #  config:
@@ -100,7 +103,7 @@ trajectory:
 #  type: LongKarmanVortexStreetTrajectory
 #  config:
 #    noise_std: 0.
-#    n_points: 402
+#    n_points: 802
 #    data_path: ./data/karman-vortex.gif
 
 #  type: ToyTrajectory
@@ -117,8 +120,8 @@ optimizer:
 
 model:
   config:
-    n_shooting_vars: 40
-    latent_dim: 100
+    n_shooting_vars: 1
+    latent_dim: 10
   encoder:
     module: src.models.encoder_model
 
@@ -126,39 +129,47 @@ model:
 #    config:
 #      weight_decay: 0
 
-    type: DirectOptimizationEncoder
-    config:
-      init_distribution: 'normal'
-      weight_decay: 0
-
-#    type: NontrivialEncoder
+#    type: DirectOptimizationEncoder
 #    config:
+#      init_distribution: 'normal separate'
 #      weight_decay: 0
-#      encoder_net:
-#        module: src.models.nets.encoder_nets
-#
+
+    type: NontrivialEncoder
+    config:
+      weight_decay: 0
+      encoder_net:
+        module: src.models.nets.encoder_nets
+
+#        type: FCLatentSpaceEncoder
+#        config:
+#          n_layers: 5
+#          hidden_dim: 5
+#          activation: 'tanh'
+#          normalized: False
+#          dropouts: []
+
 #        type: SimpleLatentSpaceEncoder
 #        config: {}
-#
-##        type: ConvLatentSpaceEncoder
-##        config:
-##          n_layers: 5
-##          hidden_channels: 50
-##          activation: 'tanh'
-#
-##        type: UNetLikeLatentSpaceEncoder
-##        config:
-##          init_channels: 10
-##          n_layers: 5
-##          activation: 'relu'
-#
-##        type: TransformerLatentSpaceEncoder
-##        config:
-##          n_layers: 5
-##          nhead: 8
-##          dim_feedforward: 256
-##          dropout: 0.
-##          activation: 'relu'
+
+#        type: ConvLatentSpaceEncoder
+#        config:
+#          n_layers: 5
+#          hidden_channels: 10
+#          activation: 'tanh'
+
+        type: UNetLikeLatentSpaceEncoder
+        config:
+          init_channels: 2
+          n_layers: 5
+          activation: 'relu'
+
+#        type: TransformerLatentSpaceEncoder
+#        config:
+#          n_layers: 5
+#          nhead: 8
+#          dim_feedforward: 256
+#          dropout: 0.
+#          activation: 'relu'
 
 
   decoder:
@@ -170,21 +181,21 @@ model:
 
     type: NontrivialDecoder
     config:
-      weight_decay: 1e-7
-      dropout: 0.5
+      weight_decay: 0
+      dropout: 0
     decoder_net:
       module: src.models.nets.decoder_nets
 
 #      type: SimpleLatentSpaceDecoder
 #      config: {}
 
-#      type: FCLatentSpaceDecoder
-#      config:
-#        n_layers: 5
-#        hidden_dim: 50
-#        activation: 'tanh'
-#        normalized: False
-#        dropouts: []
+      type: FCLatentSpaceDecoder
+      config:
+        n_layers: 5
+        hidden_dim: 10
+        activation: 'tanh'
+        normalized: False
+        dropouts: []
 #
 #      type: UNetLikeConvLatentSpaceDecoder
 #      config:
@@ -197,14 +208,14 @@ model:
 #      config:
 #        n_layers: 5
 
-      type: MixNetLatentSpaceDecoder
-      config:
-        n_layers: 5
-        hidden_dim: 50
-        activation: 'tanh'
-        normalized: False
-        dropouts: []
-        conv_index: 0
+#      type: MixNetLatentSpaceDecoder
+#      config:
+#        n_layers: 5
+#        hidden_dim: 50
+#        activation: 'tanh'
+#        normalized: False
+#        dropouts: []
+#        conv_index: 0
 #
 #      type: Seq2SeqTransformerLatentSpaceDecoder
 #      config:
@@ -227,38 +238,43 @@ model:
     linear:
       module: src.models.nets.rhs_nets
 
-      type: StableLinear
-      config:
-        use_random_projection_init: True
-        norm: 1000.
+#      type: UnstableLinear
+#      config: {}
 
+#      type: StableLinear
+#      config:
+#        use_random_projection_init: True
+#        norm: 100.
+#        skewsymmetricity_alpha: 0
+#
 #      type: StableDHLinear
 #      config:
 #        use_random_projection_init: True
 #        eps: 1e-7
-#        norm: 10
+#        norm: 10.
+#        skewsymmetricity_alpha: 1
 
     rhs_net:
       module: src.models.nets.rhs_nets
 
-      type: SimpleRHS
-      odeint:
-        module: src.utils.linear_ode_int
-        type: matrix_exp_odeint
-      config:
-        dynamics_weight_decay: 0.
-
-#      type: FCRHS
+#      type: SimpleRHS
 #      odeint:
-#        module: torchdiffeq
-#        type: odeint
+#        module: src.utils.linear_ode_int
+#        type: matrix_exp_odeint
 #      config:
-#        n_layers: 5
-#        hidden_dim: 50
-#        activation: 'tanh'
-#        normalized: False
-#
-#        dynamics_weight_decay: 0.
+#        dynamics_weight_decay: 0
+
+      type: FCRHS
+      odeint:
+        module: torchdiffeq
+        type: odeint
+      config:
+        n_layers: 5
+        hidden_dim: 10
+        activation: 'tanh'
+        normalized: False
+
+        dynamics_weight_decay: 0.
 
 #      type: ControlledLinearRHS
 #      odeint:
