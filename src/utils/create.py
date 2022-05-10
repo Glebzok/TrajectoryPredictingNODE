@@ -90,14 +90,17 @@ def create_optimizer(opt_config: DictConfig,
                      decoder_config: DictConfig,
                      model: nn.Module):
     opt_type = get_attr_from_module(opt_config.module, opt_config.type)
-    params = [{'params': model.encoder_model.parameters(), 'weight_decay': encoder_config.weight_decay},
-              {'params': model.decoder_model.parameters(), 'weight_decay': decoder_config.weight_decay},
-              {'params': model.shooting_model.rhs_net.dynamics.parameters(),
-               'weight_decay': shooting_config.rhs_net.config.dynamics_weight_decay}]
+    if opt_config.type == 'LBFGS':
+        params = model.parameters()
+    else:
+        params = [{'params': model.encoder_model.parameters(), 'weight_decay': encoder_config.weight_decay},
+                  {'params': model.decoder_model.parameters(), 'weight_decay': decoder_config.weight_decay},
+                  {'params': model.shooting_model.rhs_net.dynamics.parameters(),
+                   'weight_decay': shooting_config.rhs_net.config.dynamics_weight_decay}]
 
-    if hasattr(model.shooting_model.rhs_net, 'controller'):
-        params.append({'params': model.shooting_model.rhs_net.controller.parameters(),
-                       'weight_decay': shooting_config.rhs_net.config.controller_weight_decay})
+        if hasattr(model.shooting_model.rhs_net, 'controller'):
+            params.append({'params': model.shooting_model.rhs_net.controller.parameters(),
+                           'weight_decay': shooting_config.rhs_net.config.controller_weight_decay})
 
     opt = opt_type(params=params, **opt_config.config)
     return opt

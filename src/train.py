@@ -127,6 +127,8 @@ class Trainer(object):
             loss += self.lambda4 * var_loss
             losses['Sigma divergence'] = var_loss.item()
 
+        # loss += 1e-5 * torch.linalg.eigvals(self.node_model.shooting_model.rhs_net.dynamics.weight).real.min() ** 2
+
         return loss, losses
 
     def log_step(self,
@@ -199,13 +201,18 @@ class Trainer(object):
                 if not os.path.exists(f'{self.log_dir}/{wandb.run.id}_{self.experiment_name}'):
                     os.mkdir(f'{self.log_dir}/{wandb.run.id}_{self.experiment_name}')
 
-            y_pred, z0_pred, z_pred = self.node_model(t_train, y_train)
-            loss, step_losses = self.calc_loss(y_train, y_pred, z0_pred, z_pred)
+            def closure():
+                y_pred, z0_pred, z_pred = self.node_model(t_train, y_train)
+                loss, step_losses = self.calc_loss(y_train, y_pred, z0_pred, z_pred)
 
-            self.optimizer.zero_grad()
-            loss.backward()
+                self.optimizer.zero_grad()
+                loss.backward()
+                return loss
 
             if itr % self.logging_interval == 0:
+
+                y_pred, z0_pred, z_pred = self.node_model(t_train, y_train)
+                loss, step_losses = self.calc_loss(y_train, y_pred, z0_pred, z_pred)
 
                 self.node_model.eval()
 
@@ -221,4 +228,4 @@ class Trainer(object):
 
                 self.node_model.train()
 
-            self.optimizer.step()
+            self.optimizer.step(closure)
