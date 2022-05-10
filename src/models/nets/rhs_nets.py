@@ -95,7 +95,7 @@ class SimpleRHS(nn.Module):
 
 
 class FCRHS(nn.Module):
-    def __init__(self, system_dim, n_layers, hidden_dim, activation, normalized, **kwargs):
+    def __init__(self, system_dim, n_layers, hidden_dim, activation, normalized, last_bias, **kwargs):
         super().__init__()
         self.dynamics = FCNet(input_dim=system_dim, output_dim=system_dim,
                               n_layers=n_layers, hidden_dim=hidden_dim,
