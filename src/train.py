@@ -121,8 +121,8 @@ class Trainer(object):
 
         if self.lambda4 > 0:
             z_pred_sigma = z0_pred[:, latent_dim:]
-            sigma_trace = (torch.exp(z_pred_sigma) ** 2).sum(dim=1)  # shooting_vars
-            var_loss = ((sigma_trace - z_pred_sigma.shape[1]) ** 2).mean()
+            sigma_trace = (z_pred_sigma ** 2).sum(dim=1)  # shooting_vars
+            var_loss = ((sigma_trace - z_pred_sigma.shape[1] / 16.) ** 2).mean()
 
             loss += self.lambda4 * var_loss
             losses['Sigma divergence'] = var_loss.item()

@@ -17,6 +17,9 @@ class DirectOptimizationEncoder(nn.Module):
         super(DirectOptimizationEncoder, self).__init__()
         if init_distribution == 'normal':
             self.shooting_vars = torch.randn(n_shooting_vars, latent_dim)  # N(0, 1)
+        elif init_distribution == 'normal separate':
+            self.shooting_vars = torch.randn(n_shooting_vars, latent_dim)  # N(0, 1)
+            self.shooting_vars[:, latent_dim // 2:] *= 0.5  # N(0, 1/4)
         else:
             self.shooting_vars = (torch.rand(n_shooting_vars, latent_dim) - 0.5) * 2. # U(-1, 1)
         self.shooting_vars = nn.Parameter(self.shooting_vars)  # (n_shooting_vars, latent_dim)
