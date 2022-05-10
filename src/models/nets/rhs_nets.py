@@ -5,6 +5,13 @@ import torch
 from src.models.backbones.pointwise_nets import FCNet
 
 
+class UnstableLinear(nn.Linear):
+    def __init__(self, n, norm):
+        super().__init__(in_features=n, out_features=n, bias=False)
+        self.norm = norm
+        self.weight.data = self.weight.data / torch.linalg.norm(self.weight) * norm
+
+
 class StableLinear(nn.Module):
     def __init__(self, n, use_random_projection_init, norm, skewsymmetricity_alpha=0):
         super().__init__()
@@ -92,7 +99,7 @@ class FCRHS(nn.Module):
         super().__init__()
         self.dynamics = FCNet(input_dim=system_dim, output_dim=system_dim,
                               n_layers=n_layers, hidden_dim=hidden_dim,
-                              activation=activation, normalized=normalized)
+                              activation=activation, normalized=normalized, last_bias=last_bias)
         self.system_dim = system_dim
 
     def forward(self, t, x):

@@ -15,26 +15,26 @@ class LinearNet(nn.Module):
 
 class FCNet(nn.Module):
     @staticmethod
-    def _get_linear(input_dim, output_dim, normalized):
+    def _get_linear(input_dim, output_dim, normalized, bias):
         if normalized:
-            return nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim, output_dim))
+            return nn.utils.parametrizations.spectral_norm(nn.Linear(input_dim, output_dim, bias=bias))
         else:
-            return nn.Linear(input_dim, output_dim)
+            return nn.Linear(input_dim, output_dim, bias=bias)
 
-    def __init__(self, input_dim, output_dim, n_layers, hidden_dim, activation, normalized, dropouts=[]):
+    def __init__(self, input_dim, output_dim, n_layers, hidden_dim, activation, normalized, dropouts=[], last_bias=True):
         super().__init__()
         self.activation = activation
 
         if n_layers == 1:
-            self.layers = nn.ModuleList([self._get_linear(input_dim, output_dim, normalized)])
+            self.layers = nn.ModuleList([self._get_linear(input_dim, output_dim, normalized, bias=last_bias)])
         elif n_layers == 2:
-            self.layers = nn.ModuleList([self._get_linear(input_dim, hidden_dim, normalized),
-                                         self._get_linear(hidden_dim, output_dim, normalized)])
+            self.layers = nn.ModuleList([self._get_linear(input_dim, hidden_dim, normalized, bias=True),
+                                         self._get_linear(hidden_dim, output_dim, normalized, bias=last_bias)])
         else:
-            self.layers = nn.ModuleList([self._get_linear(input_dim, hidden_dim, normalized)] \
-                                        + [self._get_linear(hidden_dim, hidden_dim, normalized) for _ in
+            self.layers = nn.ModuleList([self._get_linear(input_dim, hidden_dim, normalized, bias=True)] \
+                                        + [self._get_linear(hidden_dim, hidden_dim, normalized, bias=True) for _ in
                                            range(n_layers - 2)] \
-                                        + [self._get_linear(hidden_dim, output_dim, normalized)])
+                                        + [self._get_linear(hidden_dim, output_dim, normalized, bias=last_bias)])
 
         self.dropouts = [nn.Dropout(p=dropout) for dropout in dropouts]
 
