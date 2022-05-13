@@ -152,7 +152,7 @@ class FluidFlowTrajectory(AbstractTrajectory):
 
         self.rhs = self.RHS(mu=self.mu, omega=self.omega, A=self.A, lam=self.lam)
 
-        self.signal_dim = 2
+        self.signal_dim = 3
         self.visible_dims = list(visible_dims)
 
     class RHS(nn.Module):
