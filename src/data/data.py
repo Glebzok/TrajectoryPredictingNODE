@@ -199,8 +199,8 @@ class ShortKarmanVortexStreetTrajectory(AbstractTrajectory):
 
 
 class LongKarmanVortexStreetTrajectory(AbstractTrajectory):
-    def __init__(self, n_points, noise_std, data_path):
-        super().__init__(t0=0, T=10., n_points=n_points, noise_std=noise_std, signal_amp=1)
+    def __init__(self, n_points, noise_std, data_path, T=10.):
+        super().__init__(t0=0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=1)
 
         self.data = np.stack(list(iio.get_reader(data_path, mode='I')))
         self.data = np.dot(self.data[..., :3], [0.2989, 0.5870, 0.1140])
@@ -222,12 +222,13 @@ class LongKarmanVortexStreetTrajectory(AbstractTrajectory):
 
 
 class ToyTrajectory(AbstractTrajectory):
-    def __init__(self, T, n_points, noise_std):
+    def __init__(self, T, n_points, noise_std, only_real_part=True):
         super().__init__(t0=0, T=T, n_points=n_points, noise_std=noise_std, signal_amp=1)
 
         self.init_dim = None
         self.signal_dim = 128
         self.visible_dims = list(range(self.signal_dim))
+        self.only_real_part = only_real_part
 
     def __call__(self):
         f1 = lambda x, t: 1. / torch.cosh(x + 3) * torch.exp(2.3j * t)
@@ -238,7 +239,10 @@ class ToyTrajectory(AbstractTrajectory):
 
         xgrid, tgrid = torch.meshgrid(x, t)
 
-        y_clean = (f1(xgrid, tgrid) + f2(xgrid, tgrid)).real
+        y_clean = (f1(xgrid, tgrid) + f2(xgrid, tgrid))
+        if self.only_real_part:
+            y_clean = y_clean.real
+
         y = self.generate_visible_trajectory(y_clean)
 
         return t, y_clean, y
