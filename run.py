@@ -3,12 +3,12 @@ from omegaconf import DictConfig
 import os
 
 from src.models.model import NODEModel
-from src.utils.create import create_optimizer, create_trajectory, create_encoder, create_shooting_model, \
+from utils.create import create_optimizer, create_trajectory, create_encoder, create_shooting_model, \
     create_decoder_model, create_trainer
-from src.utils.seed import seed_everything
+from utils.seed import seed_everything
 
 
-@hydra.main(config_path="./configs", config_name="config.yaml")
+@hydra.main(config_path="./configs", config_name="sin_config.yaml")
 def app(cfg: DictConfig):
     device = cfg.environment.device
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"

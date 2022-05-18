@@ -77,7 +77,6 @@ class AbstractTrajectory():
     @staticmethod
     def log_prediction_image(y_clean_train, y_train, y_pred, y_train_inference,
                              y_clean_test, y_test, y_test_inference):
-
         train_len, test_len = y_train.shape[-1], y_test.shape[-1]
 
         dim = y_train.shape[0]
@@ -174,19 +173,26 @@ class AbstractTrajectory():
                                                       y_train)  # (signal_dim, T), (latent_dim, T)
         y_train_inference = y_inference[:, :t_train.shape[0]]
         y_test_inference = y_inference[:, t_train.shape[0]:]
-        z_train_inference = z_inference[:, :t_train.shape[0]]
-        z_test_inference = z_inference[:, t_train.shape[0]:]
+
+        if z_inference is not None:
+            z_train_inference = z_inference[:, :t_train.shape[0]]
+            z_test_inference = z_inference[:, t_train.shape[0]:]
+        else:
+            z_train_inference, z_test_inference = None, None
 
         val_losses = self.calc_val_losses(y_train, y_test, y_train_inference, y_test_inference)
 
-        t_train, y_clean_train, y_train, z_pred, y_pred, y_train_inference, t_test, y_clean_test, y_test, \
-        y_test_inference, z_train_inference, z_test_inference = \
+        t_train, y_clean_train, y_train, y_pred,\
+        y_train_inference, t_test, y_clean_test, y_test, y_test_inference = \
             t_train.cpu().numpy(), y_clean_train.cpu().numpy(), y_train.cpu().numpy(), \
-            z_pred.detach().cpu().numpy(), y_pred.detach().cpu().numpy(), \
+            y_pred.detach().cpu().numpy(), \
             y_train_inference.detach().cpu().numpy(), t_test.cpu().numpy(), \
             y_clean_test.cpu().numpy(), y_test.cpu().numpy(), \
-            y_test_inference.detach().cpu().numpy(), \
-            z_train_inference.detach().cpu().numpy(), z_test_inference.detach().cpu().numpy()
+            y_test_inference.detach().cpu().numpy()
+
+        if z_train_inference is not None:
+            z_train_inference, z_test_inference, z_pred = \
+                z_train_inference.detach().cpu().numpy(), z_test_inference.detach().cpu().numpy(), z_pred.detach().cpu().numpy(),
 
         signals = \
             {'true': {'t_train': t_train,
@@ -221,12 +227,16 @@ class AbstractTrajectory():
             log_video = None
             log_image = None
 
-        if hasattr(model.shooting_model.rhs_net.dynamics, 'weight'):
+        if hasattr(model, 'shooting_model') and hasattr(model.shooting_model.rhs_net.dynamics, 'weight'):
             spectrum_table = self.log_spectrum(model)
         else:
             spectrum_table = None
-        shooting_latent_trajectories, inference_latent_trajectories = \
-            self.log_latent_trajectories(t_train, z_pred, t_test, z_train_inference, z_test_inference)
+
+        if z_pred is not None:
+            shooting_latent_trajectories, inference_latent_trajectories = \
+                self.log_latent_trajectories(t_train, z_pred, t_test, z_train_inference, z_test_inference)
+        else:
+            shooting_latent_trajectories, inference_latent_trajectories = None, None
 
         return log_table, log_video, log_image, spectrum_table, \
                shooting_latent_trajectories, inference_latent_trajectories, signals, val_losses

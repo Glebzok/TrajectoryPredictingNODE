@@ -1,5 +1,7 @@
 import importlib
+import inspect
 from omegaconf import DictConfig, OmegaConf
+from functools import partial
 import pandas as pd
 import torch.nn as nn
 
@@ -116,3 +118,24 @@ def create_trainer(config: DictConfig,
                            device=config.environment.device,
                            **trainer_config.config, config=normalized_config)
     return trainer
+
+
+def create_universal(config: DictConfig):
+    par_type = get_attr_from_module(config.module, config.type)
+    if inspect.isclass(par_type):
+        par = par_type(**config.config)
+    else:
+        par = partial(par_type, **config.config) if 'config' in config.keys() else par_type
+
+    return par
+
+
+def create_fitter(config: DictConfig,
+                  fitter_config: DictConfig,
+                  trajectory, dmd_model):
+    fitter_type = get_attr_from_module(fitter_config.module, fitter_config.type)
+
+    normalized_config = pd.json_normalize(OmegaConf.to_container(config)).to_dict(orient='records')[0]
+    fitter = fitter_type(trajectory=trajectory, model=dmd_model,
+                         **fitter_config.config, config=normalized_config)
+    return fitter

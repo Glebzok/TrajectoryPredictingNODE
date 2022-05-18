@@ -5,6 +5,8 @@ import pickle as pkl
 import wandb
 import os
 
+from src.data.preprocessing import train_test_split
+
 
 class Trainer(object):
     def __init__(self,
@@ -41,38 +43,6 @@ class Trainer(object):
         self.scaling = scaling
         self.normalize_t = normalize_t
         self.normalize_rhs_loss = normalize_rhs_loss
-
-    def scale(self, y_train, y_test):
-        # y: (signal_dim, T)
-        if self.scaling == 'axiswise':
-            mean = y_train.mean(dim=1, keepdims=True)
-            std = y_train.std(dim=1, keepdims=True)
-        else:
-            mean = y_train.mean()
-            std = y_train.std()
-
-        y_train = (y_train - mean) / std
-        y_test = (y_test - mean) / std
-
-        return y_train, y_test
-
-    def train_test_split(self, t, y_clean, y, train_frac):
-        # t: (T,)
-        # y_clean: (signal_dim, T)
-        # y: (signal_dim, T)
-        N = ((t / t.max()) <= train_frac).sum()
-
-        if self.normalize_t:
-            t = t / t.max()
-
-        t_train, t_test = t[:N], t[N:]
-        y_clean_train, y_clean_test = y_clean[:, :N], y_clean[:, N:]
-        y_train, y_test = y[:, :N], y[:, N:]
-
-        y_clean_train, y_clean_test = self.scale(y_clean_train, y_clean_test)
-        y_train, y_test = self.scale(y_train, y_test)
-
-        return t_train, y_clean_train, y_train, t_test, y_clean_test, y_test
 
     def calc_loss(self, y, y_pred, z0_pred, z_pred):
         # y: (signal_dim, T)
@@ -190,7 +160,8 @@ class Trainer(object):
         t, y_clean, y = self.trajectory()
 
         t_train, y_clean_train, y_train, t_test, y_clean_test, y_test = \
-            self.train_test_split(t=t, y_clean=y_clean, y=y, train_frac=self.train_frac)
+            train_test_split(t=t, y_clean=y_clean, y=y, train_frac=self.train_frac,
+                             normalize_t=self.normalize_t, scaling=self.scaling)
 
         t_train, y_clean_train, y_train, t_test, y_clean_test, y_test = \
             t_train.to(self.device), y_clean_train.to(self.device), y_train.to(self.device), \
