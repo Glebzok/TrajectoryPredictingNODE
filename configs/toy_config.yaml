@@ -1,0 +1,96 @@
+hydra:
+  output_subdir: null
+  run:
+    dir: .
+
+environment:
+  SEED: 705
+  device: 'cuda'
+  GPU_id: '6'
+
+trainer:
+  module: src.train
+  type: Trainer
+  config:
+    train_frac: 0.25
+    n_iter: 512000
+    logging_interval: 500
+    lambda1: 1e-9
+    lambda2: 1e-9
+    lambda3: 1e-9
+    lambda4: 0
+    shooting_lambda_step: 1e-3
+
+    project_name: 'NODE model'
+    experiment_name: 'toy 705 SEED noise'
+    notes: ''
+    tags: [ 'final report', 'toy', '705 SEED', 'noise' ]
+    mode: 'online'
+
+    log_dir: './logs'
+
+    scaling: 'total'
+    normalize_t: False
+    normalize_rhs_loss: False
+
+trajectory:
+  module: src.data.data
+  type: ToyTrajectory
+  config:
+    noise_std: 0.2
+    T: 50.2654
+    n_points: 802
+
+optimizer:
+  module: torch.optim
+  type: Adam
+  config:
+    lr: 1e-4
+
+model:
+  config:
+    n_shooting_vars: 40
+    latent_dim: 20
+  encoder:
+    module: src.models.encoder_model
+    type: DirectOptimizationEncoder
+    config:
+      init_distribution: 'uniform'
+      weight_decay: 0
+
+  decoder:
+    module: src.models.decoder_model
+    type: NontrivialDecoder
+    config:
+      weight_decay: 1e-3
+      dropout: 0
+    decoder_net:
+      module: src.models.nets.decoder_nets
+      type: FCLatentSpaceDecoder
+      config:
+        n_layers: 5
+        hidden_dim: 20
+        activation: 'tanh'
+        normalized: False
+        dropouts: []
+
+  shooting:
+    module: src.models.shooting_model
+    type: DeterministicShooting
+    config: {}
+    linear:
+      module: src.models.nets.rhs_nets
+      type: StableLinear
+      config:
+        use_random_projection_init: True
+        norm: 1.
+        skewsymmetricity_alpha: 0
+
+    rhs_net:
+      module: src.models.nets.rhs_nets
+      type: SimpleRHS
+      odeint:
+        module: src.utils.linear_ode_int
+        type: matrix_exp_odeint
+      config:
+        dynamics_weight_decay: 0
