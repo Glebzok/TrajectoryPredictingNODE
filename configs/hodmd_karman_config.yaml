@@ -1,0 +1,45 @@
+hydra:
+  output_subdir: null
+  run:
+    dir: ..
+
+environment:
+  SEED: 42
+
+fitter:
+  module: baselines.dmd_models
+  type: Fitter
+  config:
+    train_frac: 0.7
+
+    project_name: 'NODE model'
+    experiment_name: 'HODMD karman 42 SEED noise'
+#    experiment_name: 'HODMD karman 42 SEED no noise'
+    notes: ''
+    tags: ['HODMD', 'final report', 'karman', '42 SEED', 'noise' ]
+#    tags: ['HODMD', 'final report', 'karman', '42 SEED', 'no noise' ]
+    mode: 'online'
+
+
+trajectory:
+  module: src.data.data
+  type: LongKarmanVortexStreetTrajectory
+  config:
+    noise_std: 10.
+#    noise_std: 0
+    n_points: 402
+    data_path: ./data/karman-vortex.gif
+
+
+model:
+  module: pydmd
+  type: HODMD
+  config:
+    svd_rank: 0
+    tlsq_rank: 0
+    exact: False
+    opt: False
+    rescale_mode: null
+    forward_backward: False
+    svd_rank_extra: 0
+    d: 20

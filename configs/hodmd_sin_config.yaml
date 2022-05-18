@@ -1,0 +1,47 @@
+hydra:
+  output_subdir: null
+  run:
+    dir: ..
+
+environment:
+  SEED: 42
+
+fitter:
+  module: baselines.dmd_models
+  type: Fitter
+  config:
+    train_frac: 0.25
+
+    project_name: 'NODE model'
+#    experiment_name: 'HODMD sin 42 SEED noise'
+    experiment_name: 'HODMD sin 42 SEED no noise'
+    notes: ''
+#    tags: ['HODMD', 'final report', 'sin', '42 SEED', 'noise' ]
+    tags: ['HODMD', 'final report', 'sin', '42 SEED', 'no noise' ]
+    mode: 'online'
+
+
+trajectory:
+  module: src.data.data
+  type: SinTrajectory
+  config:
+#    noise_std: 0.1
+    noise_std: 0
+    t0: 0
+    T: 50.2654
+    n_points: 802
+    signal_amp: 1.
+
+
+model:
+  module: pydmd
+  type: HODMD
+  config:
+    svd_rank: 0
+    tlsq_rank: 0
+    exact: False
+    opt: False
+    rescale_mode: null
+    forward_backward: False
+    svd_rank_extra: 0
+    d: 20

@@ -26,7 +26,7 @@ def train_test_split(t, y_clean, y, normalize_t, scaling, train_frac):
     y_clean_train, y_clean_test = y_clean[:, :N], y_clean[:, N:]
     y_train, y_test = y[:, :N], y[:, N:]
 
-    # y_clean_train, y_clean_test = scale(y_clean_train, y_clean_test, scaling)
+    y_clean_train, y_clean_test = scale(y_clean_train, y_clean_test, scaling)
     y_train, y_test = scale(y_train, y_test, scaling)
 
     return t_train, y_clean_train, y_train, t_test, y_clean_test, y_test
