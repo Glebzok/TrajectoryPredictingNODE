@@ -4,7 +4,7 @@ hydra:
     dir: .
 
 environment:
-  SEED: 1998
+  SEED: 42
   device: 'cuda'
   GPU_id: '1'
 
@@ -22,9 +22,11 @@ trainer:
     shooting_lambda_step: 1e-5
 
     project_name: 'NODE model'
-    experiment_name: 'karman 1998 SEED noise'
+    experiment_name: 'karman 42 SEED noise'
+#    experiment_name: 'karman 42 SEED no noise'
     notes: ''
-    tags: ['final report', 'karman', '1998 SEED', 'noise']
+    tags: ['final report', 'karman', '42 SEED', 'noise']
+#    tags: ['final report', 'karman', '42 SEED', 'no noise']
     mode: 'online'
 
     log_dir: './logs'
@@ -38,6 +40,7 @@ trajectory:
   type: LongKarmanVortexStreetTrajectory
   config:
     noise_std: 10.
+#    noise_std: 0
     n_points: 402
     data_path: ./data/karman-vortex.gif
 

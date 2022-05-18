@@ -4,7 +4,7 @@ hydra:
     dir: .
 
 environment:
-  SEED: 705
+  SEED: 42
   device: 'cuda'
   GPU_id: '6'
 
@@ -22,9 +22,11 @@ trainer:
     shooting_lambda_step: 1e-3
 
     project_name: 'NODE model'
-    experiment_name: 'toy 705 SEED noise'
+    experiment_name: 'toy 42 SEED noise'
+#    experiment_name: 'toy 42 SEED no noise'
     notes: ''
-    tags: [ 'final report', 'toy', '705 SEED', 'noise' ]
+    tags: [ 'final report', 'toy', '42 SEED', 'noise' ]
+#    tags: [ 'final report', 'toy', '42 SEED', 'no noise' ]
     mode: 'online'
 
     log_dir: './logs'
@@ -38,6 +40,7 @@ trajectory:
   type: ToyTrajectory
   config:
     noise_std: 0.2
+#    noise_std: 0
     T: 50.2654
     n_points: 802
 
