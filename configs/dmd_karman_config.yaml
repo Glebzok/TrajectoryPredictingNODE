@@ -7,7 +7,7 @@ environment:
   SEED: 42
 
 fitter:
-  module: baselines.dmd_models
+  module: baselines.fitter
   type: Fitter
   config:
     train_frac: 0.7

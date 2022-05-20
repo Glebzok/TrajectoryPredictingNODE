@@ -132,10 +132,10 @@ def create_universal(config: DictConfig):
 
 def create_fitter(config: DictConfig,
                   fitter_config: DictConfig,
-                  trajectory, dmd_model):
+                  trajectory, model):
     fitter_type = get_attr_from_module(fitter_config.module, fitter_config.type)
 
     normalized_config = pd.json_normalize(OmegaConf.to_container(config)).to_dict(orient='records')[0]
-    fitter = fitter_type(trajectory=trajectory, model=dmd_model,
+    fitter = fitter_type(trajectory=trajectory, model=model,
                          **fitter_config.config, config=normalized_config)
     return fitter
