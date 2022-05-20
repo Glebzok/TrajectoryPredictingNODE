@@ -1,0 +1,51 @@
+hydra:
+  output_subdir: null
+  run:
+    dir: ..
+
+environment:
+  SEED: 42
+
+fitter:
+  module: baselines.fitter
+  type: Fitter
+  config:
+    train_frac: 0.25
+
+    project_name: 'NODE model'
+    experiment_name: 'Reservoir sin 42 SEED noise'
+#    experiment_name: 'Reservoir sin 42 SEED no noise'
+    notes: ''
+    tags: ['Reservoir', 'final report', 'sin', '42 SEED', 'noise' ]
+#    tags: ['Reservoir', 'final report', 'sin', '42 SEED', 'no noise' ]
+    mode: 'online'
+
+
+training:
+  warm_steps: 10
+
+
+trajectory:
+  module: src.data.data
+  type: SinTrajectory
+  config:
+    noise_std: 0.1
+#    noise_std: 0
+    t0: 0
+    T: 50.2654
+    n_points: 802
+    signal_amp: 1.
+
+
+model:
+  module: reservoirpy.nodes
+  reservoir:
+    type: Reservoir
+    config:
+      units: 50
+      lr: 0.1
+      sr: 0.1
+  readout:
+    type: Ridge
+    config:
+      ridge: 1e-6

@@ -1,0 +1,49 @@
+hydra:
+  output_subdir: null
+  run:
+    dir: ..
+
+environment:
+  SEED: 42
+
+fitter:
+  module: baselines.fitter
+  type: Fitter
+  config:
+    train_frac: 0.7
+
+    project_name: 'NODE model'
+    experiment_name: 'Reservoir karman 42 SEED noise'
+#    experiment_name: 'Reservoir karman 42 SEED no noise'
+    notes: ''
+    tags: ['Reservoir', 'final report', 'karman', '42 SEED', 'noise' ]
+#    tags: ['Reservoir', 'final report', 'karman', '42 SEED', 'no noise' ]
+    mode: 'online'
+
+
+training:
+  warm_steps: 10
+
+
+trajectory:
+  module: src.data.data
+  type: LongKarmanVortexStreetTrajectory
+  config:
+    noise_std: 10.
+#    noise_std: 0
+    n_points: 402
+    data_path: ./data/karman-vortex.gif
+
+
+model:
+  module: reservoirpy.nodes
+  reservoir:
+    type: Reservoir
+    config:
+      units: 500
+      lr: 1e-2
+      sr: 1e-1
+  readout:
+    type: Ridge
+    config:
+      ridge: 5

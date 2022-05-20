@@ -1,0 +1,50 @@
+hydra:
+  output_subdir: null
+  run:
+    dir: ..
+
+environment:
+  SEED: 42
+
+fitter:
+  module: baselines.fitter
+  type: Fitter
+  config:
+    train_frac: 0.25
+
+    project_name: 'NODE model'
+    experiment_name: 'Reservoir toy 42 SEED noise'
+#    experiment_name: 'Reservoir toy 42 SEED no noise'
+    notes: ''
+    tags: ['Reservoir', 'final report', 'toy', '42 SEED', 'noise' ]
+#    tags: ['Reservoir', 'final report', 'toy', '42 SEED', 'no noise' ]
+    mode: 'online'
+
+
+training:
+  warm_steps: 10
+
+
+trajectory:
+  module: src.data.data
+  type: ToyTrajectory
+  config:
+    noise_std: 0.2
+#    noise_std: 0
+    T: 50.2654
+    n_points: 802
+    only_real_part: True
+
+
+model:
+  module: reservoirpy.nodes
+  reservoir:
+    type: Reservoir
+    config:
+      units: 1000
+      lr: 1e-1
+      sr: 2
+  readout:
+    type: Ridge
+    config:
+      ridge: 3e-5

@@ -139,3 +139,14 @@ def create_fitter(config: DictConfig,
     fitter = fitter_type(trajectory=trajectory, model=model,
                          **fitter_config.config, config=normalized_config)
     return fitter
+
+
+def create_reservoir_model(reservoir_config: DictConfig, seed):
+    reservoir_type = get_attr_from_module(reservoir_config.module, reservoir_config.reservoir.type)
+    readout_type = get_attr_from_module(reservoir_config.module, reservoir_config.readout.type)
+
+    reservoir = reservoir_type(**reservoir_config.reservoir.config, seed=seed)
+    readout = readout_type(**reservoir_config.readout.config)
+
+    model = reservoir >> readout
+    return model
