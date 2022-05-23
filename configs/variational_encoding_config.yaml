@@ -1,0 +1,107 @@
+hydra:
+  output_subdir: null
+  run:
+    dir: .
+
+environment:
+  SEED: 42
+  device: 'cuda'
+  GPU_id: '6'
+
+trainer:
+  module: src.train
+  type: Trainer
+  config:
+    train_frac: 0.5
+    n_iter: 512000
+    logging_interval: 500
+    lambda1: 1e-9
+    lambda2: 1e-9
+    lambda3: 1e-9
+    lambda4: 10.
+    lambda5: 0
+    shooting_lambda_step: 1e-3
+
+    project_name: 'NODE model'
+    experiment_name: '2.3.3 n 0.5 402 points, variational conv encoder, 40 sv, no t scale, fc decoder, fc rhs 1e-3 wd'
+    notes: ''
+    tags: [ '2.3.3', 'clean', 'final', 'report', 'non-local encoder']
+    mode: 'online'
+
+    log_dir: './logs'
+
+    scaling: 'total'
+    normalize_t: False
+    normalize_rhs_loss: False
+
+trajectory:
+  module: src.data.data
+  type: SinTrajectory
+  config:
+#    noise_std: 0.1
+    noise_std: 0
+    t0: 0
+    T: 25.1327
+    n_points: 402
+    signal_amp: 1.
+
+optimizer:
+  module: torch.optim
+  type: Adam
+  config:
+    lr: 1e-4
+
+model:
+  config:
+    n_shooting_vars: 40
+    latent_dim: 5
+  encoder:
+    module: src.models.encoder_model
+    type: NontrivialEncoder
+    config:
+      weight_decay: 0
+      encoder_net:
+        module: src.models.nets.encoder_nets
+        type: ConvLatentSpaceEncoder
+        config:
+          n_layers: 5
+          hidden_channels: 5
+          activation: 'tanh'
+
+  decoder:
+    module: src.models.decoder_model
+    type: NontrivialDecoder
+    config:
+      weight_decay: 1e-3
+      dropout: 0
+    decoder_net:
+      module: src.models.nets.decoder_nets
+      type: FCLatentSpaceDecoder
+      config:
+        n_layers: 5
+        hidden_dim: 5
+        activation: 'tanh'
+        normalized: False
+        dropouts: []
+
+  shooting:
+    module: src.models.shooting_model
+    type: VariationalShooting
+    config:
+      n_samples: 64
+
+    rhs_net:
+      module: src.models.nets.rhs_nets
+
+      type: FCRHS
+      odeint:
+        module: torchdiffeq
+        type: odeint
+      config:
+        n_layers: 5
+        hidden_dim: 5
+        activation: 'tanh'
+        normalized: False
+        last_bias: True
+
+        dynamics_weight_decay: 0.
