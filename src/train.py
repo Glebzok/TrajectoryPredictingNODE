@@ -33,7 +33,7 @@ class Trainer(object):
         self.lambda4 = lambda4
         self.lambda5 = lambda5
         if lambda5 > 0:
-            self.v = list(torch.randn((weight.shape[1], 1), device=self.device) \
+            self.v = list(torch.randn((weight.shape[1], 1), device=self.device, requires_grad=True) \
                           for weight in list(filter(lambda param: param.dim() == 2,
                                                     self.node_model.shooting_model.rhs_net.dynamics.parameters())))
 
@@ -59,7 +59,7 @@ class Trainer(object):
         v = v / torch.linalg.norm(v)
         sigma_sq = torch.linalg.norm(u) ** 2
 
-        return v, sigma_sq
+        return v.detach(), sigma_sq
 
     def calc_loss(self, y, y_pred, z0_pred, z_pred):
         # y: (signal_dim, T)
@@ -118,9 +118,8 @@ class Trainer(object):
             losses['Sigma divergence'] = var_loss.item()
 
         if self.lambda5 > 0:
-            weights = list(map(lambda weight: weight.data,
-                               filter(lambda param: param.dim() == 2,
-                                      self.node_model.shooting_model.rhs_net.dynamics.parameters())))
+            weights = list(filter(lambda param: param.dim() == 2,
+                           self.node_model.shooting_model.rhs_net.dynamics.parameters()))
             self.v, sigmas_sq = list(zip(*starmap(self.power_iteration, zip(weights, self.v))))
             spectral_penalty = sum(sigmas_sq) / len(sigmas_sq)
 
