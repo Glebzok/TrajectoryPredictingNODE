@@ -4,6 +4,7 @@ from tqdm import tqdm
 import pickle as pkl
 import wandb
 import os
+from itertools import starmap
 
 from src.data.preprocessing import train_test_split
 
@@ -12,7 +13,7 @@ class Trainer(object):
     def __init__(self,
                  trajectory, node_model, optimizer,
                  train_frac, n_iter, logging_interval,
-                 lambda1, lambda2, lambda3, lambda4, shooting_lambda_step,
+                 lambda1, lambda2, lambda3, lambda4, lambda5, shooting_lambda_step,
                  device, experiment_name, project_name, notes, tags, config, mode,
                  log_dir,
                  scaling, normalize_t, normalize_rhs_loss):
@@ -24,13 +25,20 @@ class Trainer(object):
         self.n_iter = n_iter
         self.logging_interval = logging_interval
 
+        self.device = device
+
         self.lambda1 = lambda1
         self.lambda2 = lambda2
         self.lambda3 = lambda3
         self.lambda4 = lambda4
+        self.lambda5 = lambda5
+        if lambda5 > 0:
+            self.v = list(torch.randn((weight.shape[1], 1), device=self.device) \
+                          for weight in list(filter(lambda param: param.dim() == 2,
+                                                    self.node_model.shooting_model.rhs_net.dynamics.parameters())))
+
         self.shooting_lambda_step = shooting_lambda_step
 
-        self.device = device
         self.experiment_name = experiment_name
         self.project_name = project_name
         self.notes = notes
@@ -43,6 +51,15 @@ class Trainer(object):
         self.scaling = scaling
         self.normalize_t = normalize_t
         self.normalize_rhs_loss = normalize_rhs_loss
+
+    @staticmethod
+    def power_iteration(A, v):
+        u = A @ v
+        v = A.T @ u
+        v = v / torch.linalg.norm(v)
+        sigma_sq = torch.linalg.norm(u) ** 2
+
+        return v, sigma_sq
 
     def calc_loss(self, y, y_pred, z0_pred, z_pred):
         # y: (signal_dim, T)
@@ -62,12 +79,15 @@ class Trainer(object):
             losses['Shooting latent loss'] = shooting_latent_loss.item()
 
         if self.lambda2 > 0:
-            z_pred_flattened_left = torch.cat([z_pred[:, :, :, :-1].permute(0, 1, 3, 2).reshape(n_samples, -1, latent_dim),
-                                               z_pred[:, -1, :, -1:].permute(0, 2, 1)], dim=1)  # (n_samples, T, latent_dim)
+            z_pred_flattened_left = torch.cat(
+                [z_pred[:, :, :, :-1].permute(0, 1, 3, 2).reshape(n_samples, -1, latent_dim),
+                 z_pred[:, -1, :, -1:].permute(0, 2, 1)], dim=1)  # (n_samples, T, latent_dim)
             z_pred_flattened_left = z_pred_flattened_left.permute(0, 2, 1)  # (n_samples, latent_dim, T)
 
             z_pred_flattened_right = torch.cat([z_pred[:, 0, :, :1].permute(0, 2, 1),
-                                                z_pred[:, :, :, 1:].permute(0, 1, 3, 2).reshape(n_samples, -1, latent_dim)], dim=1)  # (n_samples, T, latent_dim)
+                                                z_pred[:, :, :, 1:].permute(0, 1, 3, 2).reshape(n_samples, -1,
+                                                                                                latent_dim)],
+                                               dim=1)  # (n_samples, T, latent_dim)
             z_pred_flattened_right = z_pred_flattened_right.permute(0, 2, 1)  # (n_samples, latent_dim, T)
 
             y_pred_shooting_left = self.node_model.decoder_model(z_pred_flattened_left)  # (n_samples, signal_dim, T)
@@ -97,7 +117,15 @@ class Trainer(object):
             loss += self.lambda4 * var_loss
             losses['Sigma divergence'] = var_loss.item()
 
-        # loss += 1e-5 * torch.linalg.eigvals(self.node_model.shooting_model.rhs_net.dynamics.weight).real.min() ** 2
+        if self.lambda5 > 0:
+            weights = list(map(lambda weight: weight.data,
+                               filter(lambda param: param.dim() == 2,
+                                      self.node_model.shooting_model.rhs_net.dynamics.parameters())))
+            self.v, sigmas_sq = list(zip(*starmap(self.power_iteration, zip(weights, self.v))))
+            spectral_penalty = sum(sigmas_sq) / len(sigmas_sq)
+
+            loss += self.lambda5 * spectral_penalty
+            losses['Spectral penalty'] = spectral_penalty.item()
 
         return loss, losses
 
@@ -117,7 +145,7 @@ class Trainer(object):
             y_pred = y_pred[0]  # (signal_dim, T_train)
             z_pred = z_pred[0]  # (n_shooting_vars, latent_dim, t)
 
-            prediction_table, prediction_video, prediction_image, spectrum_table,\
+            prediction_table, prediction_video, prediction_image, spectrum_table, \
             shooting_latent_trajectories, inference_latent_trajectories, signals_dict, val_losses = \
                 self.trajectory.log_prediction_results(self.node_model,
                                                        t_train, y_clean_train, y_train, z_pred, y_pred,
