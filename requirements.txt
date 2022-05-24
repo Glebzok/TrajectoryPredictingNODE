@@ -6,8 +6,10 @@ moviepy
 numpy
 omegaconf
 pandas
-# plotly
 torch
 torchdiffeq
 # transformers
 wandb
+
+# reservoirpy
+# pydmd
