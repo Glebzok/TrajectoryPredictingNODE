@@ -6,7 +6,7 @@ hydra:
 environment:
   SEED: 42
   device: 'cuda'
-  GPU_id: '4'
+  GPU_id: '0'
 
 trainer:
   module: src.train

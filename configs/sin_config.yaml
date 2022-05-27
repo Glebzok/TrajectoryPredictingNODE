@@ -6,7 +6,7 @@ hydra:
 environment:
   SEED: 42
   device: 'cuda'
-  GPU_id: '6'
+  GPU_id: '0'
 
 trainer:
   module: src.train
@@ -19,6 +19,7 @@ trainer:
     lambda2: 1e-9
     lambda3: 1e-9
     lambda4: 0
+    lambda5: 0
     shooting_lambda_step: 1e-3
 
     project_name: 'NODE model'
@@ -95,7 +96,7 @@ model:
       module: src.models.nets.rhs_nets
       type: SimpleRHS
       odeint:
-        module: src.utils.linear_ode_int
+        module: src.linear_ode_int
         type: matrix_exp_odeint
       config:
         dynamics_weight_decay: 0

@@ -35,7 +35,7 @@ class ReservoirModelWrapper(nn.Module):
         return self.forward(t, y)
 
 
-@hydra.main(config_path="../configs", config_name="reservoir_toy_config.yaml")
+@hydra.main(config_path="../configs", config_name="reservoir_karman_config.yaml")
 def app(cfg: DictConfig):
 
     seed_everything(cfg.environment.SEED)

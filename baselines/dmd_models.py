@@ -31,7 +31,7 @@ class DMDModelWrapper(nn.Module):
         return self.forward(t, y)
 
 
-@hydra.main(config_path="../configs", config_name="hodmd_karman_config.yaml")
+@hydra.main(config_path="../configs", config_name="dmd_karman_config.yaml")
 def app(cfg: DictConfig):
 
     seed_everything(cfg.environment.SEED)

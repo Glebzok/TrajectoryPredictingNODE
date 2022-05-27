@@ -6,7 +6,7 @@ hydra:
 environment:
   SEED: 42
   device: 'cuda'
-  GPU_id: '1'
+  GPU_id: '0'
 
 trainer:
   module: src.train
@@ -19,13 +19,14 @@ trainer:
     lambda2: 1e-9
     lambda3: 1e-9
     lambda4: 0
+    lambda5: 0
     shooting_lambda_step: 1e-5
 
     project_name: 'NODE model'
-    experiment_name: 'karman 0.5 402 points, direct opt, no t scale, stable linear norm 10 rhs, 100 ld, 1e-5 incr, 0.2 dropout'
+    experiment_name: ''
     notes: ''
     tags: ['report', 'direct optimization']
-    mode: 'online'
+    mode: 'disabled'
 
     log_dir: './logs'
 
@@ -266,7 +267,7 @@ model:
 
       type: SimpleRHS
       odeint:
-        module: src.utils.linear_ode_int
+        module: src.linear_ode_int
         type: matrix_exp_odeint
       config:
         dynamics_weight_decay: 0

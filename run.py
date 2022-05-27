@@ -8,7 +8,7 @@ from utils.create import create_optimizer, create_trajectory, create_encoder, cr
 from utils.seed import seed_everything
 
 
-@hydra.main(config_path="./configs", config_name="output_feedback_rhs_config.yaml")
+@hydra.main(config_path="./configs", config_name="config.yaml")
 def app(cfg: DictConfig):
     device = cfg.environment.device
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
